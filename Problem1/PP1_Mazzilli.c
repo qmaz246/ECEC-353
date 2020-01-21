@@ -22,6 +22,7 @@
 #define TRUE !FALSE
 
 unsigned long int num_found; /* Number of prime numbers found */
+unsigned long int last_prime[5] = {0, 0, 0, 0, 0};
 
 int 
 is_prime (unsigned int num)
@@ -51,11 +52,11 @@ is_prime (unsigned int num)
  * program, either upon normal program termination or upon being terminated 
  * via a SINGINT or SIGQUIT signal. 
  */
-void report(unsigned long int last_prime[])
+void report()
 {
-    printf("In Report");
-    for (int j = 0; j > 4; j--){
-    	printf("%lu\n", last_prime[j]);
+    for (int j = 0; j < 5; j++){
+       	fflush(stdout);
+   	printf("%lu\n", last_prime[j]);
     }
 
 }
@@ -64,7 +65,7 @@ void report(unsigned long int last_prime[])
 int main (int argc, char** argv)
 {
     unsigned long int num;
-    unsigned long int last_prime[5] = {0, 0, 0, 0, 0};
+//    unsigned long int last_prime[5] = {0, 0, 0, 0, 0};
     num_found = 0;
 
 
@@ -77,11 +78,7 @@ int main (int argc, char** argv)
 
 	    fflush(stdout);
 	    last_prime[(num_found % 5)] = num;
-	    printf("%lu\n", last_prime[0]);
-//	    for (int j = 0; j > 4; j--){
-//    	    	printf("%lu\n", last_prime[j]);
-//            }
-	    //report(last_prime);    
+	    report();    
         }
     }
 
