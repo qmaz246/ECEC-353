@@ -1,6 +1,6 @@
  /* Skeleton code from primes.
   *
-  * Author: Naga Kandasamyuthor: Naga Kandasamy
+  * Author: Naga Kandasamy
   *
   * Date created: June 28, 2018
   * Date updated: January 16, 2020 
@@ -16,7 +16,6 @@
 #include <stdio.h>
 #include <limits.h>
 #include <signal.h>
-#include <setjmp.h>
 
 #define FALSE 0 // FALSE = 0
 #define TRUE !FALSE // TRUE is the opposite of FALSE | TRUE = 1
@@ -57,6 +56,7 @@ is_prime (unsigned int num)
 void 
 report ()
 {
+    printf("\n");
     for (int j = 0; j < 5; j++){
        	fflush(stdout);
    	printf("%lu\n", last_prime[j]);
@@ -74,7 +74,7 @@ main (int argc, char** argv)
     num_found = 0;
 
     printf ("Beginning search for primes between 1 and %lu. \n", LONG_MAX);
-    for (num = 1; num < LONG_MAX; num++) {
+    for (num = 1; num < 200; num++) {
         if (is_prime (num)) {
             num_found++;
 	    printf ("\n");
@@ -82,12 +82,12 @@ main (int argc, char** argv)
 
 	    fflush(stdout);
 	    last_prime[(num_found % 5)] = num;
-	    report();
 		
 	    sleep(1);
         }
     }
-    
+    // print last 5 prime numbers on program completion
+    report(); 
     exit (EXIT_SUCCESS);
 }
 
@@ -98,11 +98,13 @@ custom_signal_handler (int signalNumber)
         case SIGINT:
             signal (SIGINT, custom_signal_handler); /* Restablish the signal handler for the next occurrence */
             printf ("Ouch...Caught the Control+C signal. \n");
-            break;
+	    report();
+	    break;
 
          case SIGQUIT: 
             printf ("Caught the Quit signal. \n");
             printf ("Going through an orderly shutdown process. \n");
+	    report();
             exit (EXIT_SUCCESS);
 
          default: 
