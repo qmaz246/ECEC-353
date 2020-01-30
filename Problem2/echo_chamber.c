@@ -1,14 +1,16 @@
-/* This program illustrates the use of the UNIX pipe construct to perform inter-process communication (IPC) 
- * between a parent process and its child. 
+/* This program is to create echo chamber between a parent process and its child.
  *
  * Compile the code as follows: gcc -o simple_pipe simple_pipe.c -std=c99 -Wall
  *
- * The user enters a string as a command-line argument to the program. The parent process creates the pipe, forks a child, and passes 
- * this string via the pipe for the child to print.  
+ * The user enters a string to the program through the stdin. The parent process creates the pipes, forks a child, and passes 
+ * this string via the pipe for the child to convert to upper case before sending it back to the parent to print.
  *
- * Author: Naga Kandasamy
+ * Skeleton Code - Author: Naga Kandasamy
  * Date created: December 22, 2008
- * Date modifed: January 18, 2020
+ *
+ *
+ * Authors: Edward Mazzilli & Omer Somethingorother
+ * Date due: Febrary 2, 2020
 */ 
 
 #include <stdio.h>
