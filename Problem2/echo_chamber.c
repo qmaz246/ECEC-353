@@ -42,26 +42,27 @@ main (int argc, char **argv)
       printf ("Usage: %s string\n", argv[0]);
       exit (EXIT_SUCCESS);
     }*/ 
-  
-    if (pipe (fd) < 0) {        /* Create the pipe data structure. */
-        perror ("pipe");
-        exit (EXIT_FAILURE);
-    }
+    while(1){
+    	if (pipe (fd) < 0) {        /* Create the pipe data structure. */
+        	perror ("pipe");
+        	exit (EXIT_FAILURE);
+    	}
 
-    if (pipe (fd2) < 0) {	/* Create second pipe data structure. */
-	perror ("pipe");
-	exit (EXIT_FAILURE);
-    }
+    	if (pipe (fd2) < 0) {	/* Create second pipe data structure. */
+		perror ("pipe");
+		exit (EXIT_FAILURE);
+    	}
 
-    if ((pid = fork ()) < 0) {  /* Fork the parent process. */
-        perror ("fork");
-        exit (EXIT_FAILURE);
-    }
-  
-    	if (pid > 0) {                                                                 			/* Parent code */
-        	//strcpy (buffer, argv[1]);                                                   		/* Copy the input string into buffer */
-		fgets(buffer, BUF_LEN, stdin);
-        	close (fd[0]);                                                              		/* Close the reading end of parent pipe fd*/
+
+    	if ((pid = fork ()) < 0) {  /* Fork the parent process. */
+       		perror ("fork");
+       		exit (EXIT_FAILURE);
+    	}
+	if (pid > 0) {                                                                 			/* Parent code */
+		printf ("Enter text for the parent to send to the child: ");
+		fgets(buffer, BUF_LEN, stdin);								/* Obtain string from STDIN */
+    		strtok(buffer, "\n");	
+		close (fd[0]);                                                              		/* Close the reading end of parent pipe fd*/
         	printf ("PARENT: Writing %d bytes to the pipe fd: \n", (int) strlen (buffer));
         	write (fd[1], buffer, strlen (buffer));                                     		/* Write the buffer contents to the pipe fd*/
     	}
@@ -71,7 +72,7 @@ main (int argc, char **argv)
     	    buffer[n] = '\0';                                                           		/* Terminate the string */
 	    strcpy (c_buff, buffer);						    		       	/* Copy the piped string into c_buff */
 	    close (fd2[0]);								    		/* Close the reading end of child pipe fd2*/
-	    printf ("CHILD: %s \n", buffer);
+	    printf ("CHILD has received: %s , proceeding to upper-casify\n", buffer);
             while (c_buff[j]) { 
             	ch = c_buff[j]; 
         	c_buff[j] = toupper(ch);
@@ -80,14 +81,16 @@ main (int argc, char **argv)
             printf ("CHILD: Writing %d bytes to the pipe fd2: \n", (int) strlen (c_buff));
 	    write (fd2[1], c_buff, strlen (c_buff));
             exit (EXIT_SUCCESS);                                                        /* Child exits */
-    }
+	}
+    
   
-    /* Parent code */
-    pid = waitpid (pid, &status, 0);                                                /* Wait for child to terminate */
-    printf ("PARENT: Child has terminated. \n"); 
-    close (fd2[1]);
-    m = read (fd2[0], c_buff, BUF_LEN);
-    c_buff[m] = '\0';
-    printf ("PARENT: %s \n", c_buff);
+    	/* Parent code */
+    	pid = waitpid (pid, &status, 0);                                                /* Wait for child to terminate */
+    	printf ("PARENT: Child has terminated. \n"); 
+    	close (fd2[1]);
+    	m = read (fd2[0], c_buff, BUF_LEN);
+    	c_buff[m] = '\0';
+    	printf ("PARENT has received: %s \n", c_buff);
+    }
     exit (EXIT_SUCCESS);
 }
