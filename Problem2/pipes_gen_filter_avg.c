@@ -26,10 +26,7 @@ main(int argc, char **argv)
     int pipeGTF[2];
     int pipeFTC[2];
 
-    if ((pipe(pipeGTF) < 0) || (pipe(pipeFTC) < 0)) {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
+    pipe(pipeGTF), pipe(pipeFTC);
 
     switch (fork()) {
         case -1:
@@ -37,13 +34,14 @@ main(int argc, char **argv)
             exit(EXIT_FAILURE);
 
         case 0:                 /* Child code */
-            if (close(pipeGTF[0]) == -1) { /* Close read end of gen_to_filter pipe */
-                perror("close 1");
-                exit(EXIT_FAILURE);
-            }
+	    // Close Read end of pipe
+	    if(close(pipeGTF[0]) == -1){
+		    perror("close 1");
+		    exit(EXIT_FAILURE);
+	    }
 
-            /* Duplicate stdout on write end of pipe; close the duplicated 
-             * descriptor. */
+
+            // Duplicate stdout on write end of pipe; close the duplicated descriptor.
             if (pipeGTF[1] != STDOUT_FILENO) {
                 if (dup2(pipeGTF[1], STDOUT_FILENO) == -1) {
                     perror("dup2 1");
@@ -63,24 +61,25 @@ main(int argc, char **argv)
         default:
             break; /* Parent falls through to create the next child */
     }
-
     switch (fork ()) {
         case -1:
             perror ("fork");
             exit (EXIT_FAILURE);
 
         case 0:                 /* Child code */
-            if (close(pipeGTF[1]) == -1) {	/* close write end of gen_to_filter pipe */
+	    
+            if (close(pipeGTF[1]) == -1) {	// close write end of gen_to_filter pipe 
                 perror ("close 3");
                 exit (EXIT_FAILURE);
             }
-            if (close(pipeFTC[0]) == -1) {	/* close read end of filter_to_calc pipe */
+	    
+            if (close(pipeFTC[0]) == -1) {	// close read end of filter_to_calc pipe 
                 perror ("close 9");
                 exit (EXIT_FAILURE);
             }
 
-            /* Duplicate stdin on read end of pipe; close the duplicated 
-             * descriptor. */
+	    	    
+            // Duplicate stdin on read end of pipe; close the duplicated descriptor.
             if (pipeGTF[0] != STDIN_FILENO){
                 if (dup2(pipeGTF[0], STDIN_FILENO) == -1) {
                     perror ("dup2 2");
@@ -105,23 +104,35 @@ main(int argc, char **argv)
                     exit (EXIT_FAILURE);
                 }
             }
-                
-            /* Execute the second command. Reads from pipe. */
+          
+           // Execute the second command. Reads from pipe. */
             execlp ("./filter_pos_nums", "./filter_pos_nums", (char *) NULL);
             exit (EXIT_FAILURE);
 
         default:
             break; /* Parent falls through. */
     }
-
+    
     switch (fork ()) {
         case -1:
             perror ("fork");
             exit (EXIT_FAILURE);
 
         case 0:                 // Child code 
-            if (close(pipeFTC[1]) == -1) {	// Close write end of filter_to_calc pipe 
+	    
+	    if (close(pipeFTC[1]) == -1) {	// Close write end of filter_to_calc pipe 
                 perror ("close 3");
+                exit (EXIT_FAILURE);
+            }
+
+	    // Close GTF pipe to avoid hangup
+	    if (close(pipeGTF[1]) == -1) { 
+		perror ("close 11");
+		exit (EXIT_FAILURE);
+	    }
+
+	    if (close(pipeGTF[0]) == -1) {
+         	perror ("close 10");
                 exit (EXIT_FAILURE);
             }
 
@@ -137,7 +148,6 @@ main(int argc, char **argv)
                     exit (EXIT_FAILURE);
                 }
             }
-                
             // Execute the second command. Reads from pipe.
             execlp ("./calc_avg", "./calc_avg", (char *) NULL);
             exit (EXIT_FAILURE);
@@ -177,11 +187,11 @@ main(int argc, char **argv)
         perror ("wait 2");
         exit (EXIT_FAILURE);
     }
-/*    
+
     if (wait (NULL) == -1) {
 	perror ("wait 3");
 	exit(EXIT_FAILURE);
     }
-  */  
+
     exit (EXIT_SUCCESS);
 }
