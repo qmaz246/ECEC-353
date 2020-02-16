@@ -48,8 +48,11 @@ main (int argc, char **argv)
 {
     int flags, opt;
     mode_t perms;
-    mqd_t mqd;
+    mqd_t server_mqd;
     struct mq_attr attr, *attrp;
+    void *msg;
+    ssize_t in_msg;
+    unsigned int priority;
 
     /* Set the default message queue attributes. */
     attrp = NULL;
@@ -89,14 +92,30 @@ main (int argc, char **argv)
     
     perms = S_IRUSR | S_IWUSR;  /* rw------- permissions on the queue */
 
-    mqd = mq_open (argv[optind], flags, perms, attrp);
-    if (mqd == (mqd_t)-1) {
+    server_mqd = mq_open (argv[optind], flags, perms, attrp);
+    if (server_mqd == (mqd_t)-1) {
         perror ("mq_open");
         exit (EXIT_FAILURE);
     }
-    // while (1) {
+    while (1) {
        /* FIXME: Server code here */
+	msg = malloc(sizeof(attr.mq_msgsize));		
+	if(mq_getattr(server_mqd, &attr) == -1){
+		perror("mq_getattr");
+		exit(EXIT_FAILURE);
+	}else if(attr.mq_curmsgs > 0){
+		in_msg = mq_receive(server_mqd, msg, attr.mq_msgsize, &priority);
+		if (in_msg == -1){
+			perror("mq_recieve");
+			exit(EXIT_FAILURE);
+		}
+		printf("Read %ld bytes; priority = %u \n", (long) in_msg, priority);
+		if (write (STDOUT_FILENO, msg, in_msg) == -1) {
+			perror("write");
+			exit(EXIT_FAILURE);
+		}
+	}
 	
-    // }
+    }
     exit (EXIT_SUCCESS);
 }
