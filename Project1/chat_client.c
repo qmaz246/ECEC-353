@@ -48,14 +48,13 @@ main (int argc, char **argv)
     if (server_mqd == (mqd_t)-1) {
         perror ("mq_open");
         exit (EXIT_FAILURE);
-    }else{
-	sprintf(client_name, "/eqm23_oto25_%s", user_name);
-	mqd_t client_mqd = mq_open(client_name, O_RDONLY);
-    	printf ("User %s connecting to server\n", user_name);
     }
+    sprintf(client_name, "/eqm23_oto25_%s", user_name);
+    mqd_t client_mqd = mq_open(client_name, O_RDONLY);
+    printf ("User %s connecting to server\n", user_name);
+    
 
     /* Operational menu for client */
-    char dummy;
     char line; //, *option;
     char message[4096];
     char private[4096];
@@ -115,7 +114,6 @@ main (int argc, char **argv)
 		
         }
         /* Read dummy character to consume the \n left behind in STDIN */
-        dummy = getchar ();
 	if(mq_getattr(client_mqd, &attr) == -1){
 		perror("mq_getattr");
 		exit(EXIT_FAILURE);
