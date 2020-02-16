@@ -1,14 +1,16 @@
-/* Skeleton code for the server side code. 
+/* 
+ * Program creates a message queue using parameters specified froline. 
+ *  * line. 
  * 
- * Compile as follows: gcc -o chat_server chat_server.c -std=c99 -Wall -lrt
  *
- * Author: Naga Kandasamy
- * Date created: January 28, 2020
- *
- * Student/team name: FIXME
- * Date created: FIXME  
- *
- */
+ *  * Compile as follows: gcc -o create_mq creat_mq.c -std=c99 -Wall -lrt
+ *   *
+ *    * Author: Naga Kandsamy
+ *     * Date created: july 12, 2018
+ *      * Date modified: January 22. 2020
+ *       *
+ *        * Source: M. Kerrisk, The Linux Programming Interface. 
+ *         *  */
 
 #define _POSIX_C_SOURCE 2
 
@@ -19,16 +21,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-#include "msg_structure.h"
-
-/* FIXME: Establish signal handler to handle CTRL+C signal and 
- * shut down gracefully. 
- */
-
-// Sample Code Included:
-// create_mq.c
-// 
-//
 
 static void 
 usage_error (const char *program_name)
@@ -44,7 +36,7 @@ usage_error (const char *program_name)
 }
 
 int 
-main (int argc, char **argv) 
+main (int argc, char **argv)
 {
     int flags, opt;
     mode_t perms;
@@ -55,7 +47,7 @@ main (int argc, char **argv)
     attrp = NULL;
     attr.mq_maxmsg = 10;    /* Maximum number of messages on queue */
     attr.mq_msgsize = 2048; /* Maximum message size in bytes */
-    flags = O_RDONLY;         /* Create or open the queue for reading and writing */
+    flags = O_RDWR;         /* Create or open the queue for reading and writing */
 
     /* Parse command-line arguments and set the message queue attributes as specified */
     while ((opt = getopt (argc, argv, "cm:s:x")) != -1) {
@@ -94,9 +86,6 @@ main (int argc, char **argv)
         perror ("mq_open");
         exit (EXIT_FAILURE);
     }
-    // while (1) {
-       /* FIXME: Server code here */
-	
-    // }
+
     exit (EXIT_SUCCESS);
 }

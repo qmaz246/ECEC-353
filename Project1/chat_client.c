@@ -45,10 +45,16 @@ main (int argc, char **argv)
     strcpy (user_name, argv[1]); /* Get the client user name */
 
     /* FIXME: Connect to server */
-    printf ("User %s connecting to server\n", user_name);
+    mqd_t server_mqd = mq_open("/eqm23_queue", O_WRONLY);
+    if (server_mqd == (mqd_t)-1) {
+        perror ("mq_open");
+        exit (EXIT_FAILURE);
+    }else{
+    	printf ("User %s connecting to server\n", user_name);
+    }
 
     /* Operational menu for client */
-    char option, dummy;
+    char option, message; //, dummy;
     while (1) {
         print_main_menu ();
         option = getchar ();
@@ -56,7 +62,13 @@ main (int argc, char **argv)
         switch (option) {
             case 'B':
                /* FIXME: Send message to server to be broadcast */
-               
+	    	printf("Please enter a message to send: ");
+		message = getchar();
+		strcat(&message, " : ");
+		strcat(&message, user_name);
+		mq_send(server_mqd, &message, strlen(&message), 0); 			
+
+
                 break;
 
             case 'P':
@@ -75,7 +87,7 @@ main (int argc, char **argv)
                 
         }
         /* Read dummy character to consume the \n left behind in STDIN */
-        dummy = getchar ();
+        //dummy = getchar ();
     }
          
     exit (EXIT_SUCCESS);
