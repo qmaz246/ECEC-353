@@ -36,7 +36,9 @@ int
 main (int argc, char **argv)
 {
     char user_name[USER_NAME_LEN];
-    char client_name[USER_NAME_LEN + 15];
+    char initiate[50];
+    char client_name;
+
     if (argc != 2) {
         printf ("Usage: %s user-name\n", argv[0]);
         exit (EXIT_FAILURE);
@@ -49,8 +51,20 @@ main (int argc, char **argv)
         perror ("mq_open");
         exit (EXIT_FAILURE);
     }
-    sprintf(client_name, "/eqm23_oto25_%s", user_name);
-    mqd_t client_mqd = mq_open(client_name, O_RDONLY);
+    sprintf(initiate, "phoney text:C:%s", user_name);
+    mq_send(server_mqd, initiate, strlen(initiate), 0); 			
+ 
+    sleep(4);
+
+    sprintf(&client_name, "/eqm23_oto25_%s", user_name);
+    const char *queue_name = &client_name;
+    mqd_t client_mqd = mq_open(queue_name, O_RDONLY);
+    if (client_mqd == (mqd_t)-1) {
+	printf("client\n");
+	fflush(stdout);
+        perror ("mq_open");
+        exit (EXIT_FAILURE);
+    }
     printf ("User %s connecting to server\n", user_name);
     
 
@@ -59,6 +73,10 @@ main (int argc, char **argv)
     char message[4096];
     char private[4096];
     struct mq_attr attr;
+    ssize_t in_msg;
+    unsigned int priority;
+    void *msg;
+
     while (1) {
         print_main_menu ();
         line = getchar();
@@ -91,13 +109,12 @@ main (int argc, char **argv)
 		message[strcspn(message, "\n")] = 0;	
 		strcat(strcat(message, ":P:"), strcat(strcat(private,"|"),user_name));
 		printf("%s\n", message);
+
 		mq_send(server_mqd, message, strlen(message), 0); 			
 		printf("message sent\n");
 		fflush(stdout);
 
 		sleep(1);
-
-
 
                 break;
 
@@ -113,14 +130,24 @@ main (int argc, char **argv)
                 break; 
 		
         }
-        /* Read dummy character to consume the \n left behind in STDIN */
+	msg = malloc(sizeof(attr.mq_msgsize));
+
 	if(mq_getattr(client_mqd, &attr) == -1){
 		printf("Client\n");
 		fflush(stdout);
 		perror("mq_getattr");
 		exit(EXIT_FAILURE);
 	}else if(attr.mq_curmsgs > 0){
-
+		in_msg = mq_receive(client_mqd, msg, attr.mq_msgsize, &priority);
+		if (in_msg == -1){
+			perror("mq_recieve");
+			exit(EXIT_FAILURE);
+		}
+		//printf("Read %ld bytes; priority = %u \n", (long) in_msg, priority);
+		if (write (STDOUT_FILENO, msg, in_msg) == -1) {
+			perror("write");
+			exit(EXIT_FAILURE);
+		}
 	} 
     }
          

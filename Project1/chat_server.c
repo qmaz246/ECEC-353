@@ -47,7 +47,7 @@ usage_error (const char *program_name)
 int 
 main (int argc, char **argv) 
 {
-    int flags, opt;
+    int flags, c_flags, opt;
     mode_t perms;
     mqd_t server_mqd;
     struct mq_attr attr, *attrp;
@@ -60,7 +60,8 @@ main (int argc, char **argv)
     attr.mq_maxmsg = 10;    /* Maximum number of messages on queue */
     attr.mq_msgsize = 2048; /* Maximum message size in bytes */
     flags = O_RDONLY;         /* Create or open the queue for reading and writing */
-
+    c_flags = O_WRONLY;
+    c_flags |= O_CREAT;
     /* Parse command-line arguments and set the message queue attributes as specified */
     while ((opt = getopt (argc, argv, "cm:s:x")) != -1) {
         switch (opt) {
@@ -100,7 +101,8 @@ main (int argc, char **argv)
     }
     char* message;
     char option[2], name1[20];
- 
+    char queue_name[100];
+    char queue; 
     while (1) {
        /* FIXME: Server code here */
 	msg = malloc(sizeof(attr.mq_msgsize));		
@@ -118,9 +120,11 @@ main (int argc, char **argv)
 			perror("write");
 			exit(EXIT_FAILURE);
 		}*/
+		printf("I got this far\n");
+		fflush(stdout);
 		message = strtok(msg, ":");
 		sprintf(option, "%s", strtok(NULL, ":"));
-		switch(option):
+		switch(atoi(option)){
 
 			case 'B':
 				break;
@@ -131,10 +135,26 @@ main (int argc, char **argv)
 			case 'E':
 				break;
 
-			case 'C':
-
-
+			default:
+				printf("I have gotten a C in this class\n");
+				fflush(stdout);
+				strcat(queue_name, "/eqm23_oto25_");
+				sprintf(name1, "%s", strtok(NULL, ":"));
+				strcat(queue_name, name1);
+				sprintf(&queue, "%s", queue_name);
+				const char *client_queue = &queue;
+				mqd_t client_mqd = mq_open (client_queue, c_flags, perms, attrp);
+				if (client_mqd == (mqd_t)-1) {
+					printf("server\n");
+					fflush(stdout);
+        				perror ("mq_open");
+        				exit (EXIT_FAILURE);
+    				}
+				printf("successfull server\n");
+				fflush(stdout);
 				break;
+
+		}
 		sprintf(name1, "%s", strtok(NULL, ":"));
 		printf("%s\n", message);
 		printf("%s\n", option);
