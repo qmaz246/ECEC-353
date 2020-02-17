@@ -104,7 +104,7 @@ main (int argc, char **argv)
             case 'E':
                 printf ("Chat client exiting\n");
                 /* FIXME: Send message to server that we are exiting */
-		sprintf(message, "has left the server:%s:E", user_name);
+		sprintf(message, "has left the server:E:%s", user_name);
 		mq_send(server_mqd, message, strlen(message), 0); 			
                 exit (EXIT_SUCCESS);
 
@@ -115,6 +115,8 @@ main (int argc, char **argv)
         }
         /* Read dummy character to consume the \n left behind in STDIN */
 	if(mq_getattr(client_mqd, &attr) == -1){
+		printf("Client\n");
+		fflush(stdout);
 		perror("mq_getattr");
 		exit(EXIT_FAILURE);
 	}else if(attr.mq_curmsgs > 0){

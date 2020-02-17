@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include "msg_structure.h"
 
 /* FIXME: Establish signal handler to handle CTRL+C signal and 
@@ -97,6 +98,9 @@ main (int argc, char **argv)
         perror ("mq_open");
         exit (EXIT_FAILURE);
     }
+    char* message;
+    char option[2], name1[20];
+ 
     while (1) {
        /* FIXME: Server code here */
 	msg = malloc(sizeof(attr.mq_msgsize));		
@@ -109,11 +113,33 @@ main (int argc, char **argv)
 			perror("mq_recieve");
 			exit(EXIT_FAILURE);
 		}
-		printf("Read %ld bytes; priority = %u \n", (long) in_msg, priority);
-		if (write (STDOUT_FILENO, msg, in_msg) == -1) {
+		//printf("Read %ld bytes; priority = %u \n", (long) in_msg, priority);
+		/*if (write (STDOUT_FILENO, msg, in_msg) == -1) {
 			perror("write");
 			exit(EXIT_FAILURE);
-		}
+		}*/
+		message = strtok(msg, ":");
+		sprintf(option, "%s", strtok(NULL, ":"));
+		switch(option):
+
+			case 'B':
+				break;
+
+			case 'P':
+				break;
+
+			case 'E':
+				break;
+
+			case 'C':
+
+
+				break;
+		sprintf(name1, "%s", strtok(NULL, ":"));
+		printf("%s\n", message);
+		printf("%s\n", option);
+		printf("%s\n", name1);
+		fflush(stdout);
 	}
 	
     }
