@@ -100,9 +100,10 @@ main (int argc, char **argv)
         exit (EXIT_FAILURE);
     }
     char* message;
-    char option[2], name1[20];
+    char option, option1[2], name1[20];
     char queue_name[100];
     char queue; 
+    char del[] = ":";
     while (1) {
        /* FIXME: Server code here */
 	msg = malloc(sizeof(attr.mq_msgsize));		
@@ -122,24 +123,31 @@ main (int argc, char **argv)
 		}*/
 		printf("I got this far\n");
 		fflush(stdout);
-		message = strtok(msg, ":");
-		sprintf(option, "%s", strtok(NULL, ":"));
-		switch(atoi(option)){
+		message = strtok(msg, del);
+		sprintf(option1, "%s", strtok(NULL, del));
+		option = option1[0];
+		switch(option){
 
 			case 'B':
+				printf("Broadcast\n");
+				fflush(stdout);
 				break;
 
 			case 'P':
+				printf("Private\n");
+				fflush(stdout);
+
 				break;
 
 			case 'E':
+				printf("Exit\n");
+				fflush(stdout);	
 				break;
 
-			default:
-				printf("I have gotten a C in this class\n");
+			case 'C':
 				fflush(stdout);
 				strcat(queue_name, "/eqm23_oto25_");
-				sprintf(name1, "%s", strtok(NULL, ":"));
+				sprintf(name1, "%s", strtok(NULL, del));
 				strcat(queue_name, name1);
 				sprintf(&queue, "%s", queue_name);
 				const char *client_queue = &queue;
@@ -154,10 +162,13 @@ main (int argc, char **argv)
 				fflush(stdout);
 				break;
 
+			default:
+				break;
+
 		}
 		sprintf(name1, "%s", strtok(NULL, ":"));
 		printf("%s\n", message);
-		printf("%s\n", option);
+		printf("%i\n", option);
 		printf("%s\n", name1);
 		fflush(stdout);
 	}
