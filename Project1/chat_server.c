@@ -100,7 +100,7 @@ main (int argc, char **argv)
         exit (EXIT_FAILURE);
     }
     char* message;
-    char option, option1[2], name1[20];
+    char option[2], name1[20];
     char queue_name[100];
     char queue; 
     char del[] = ":";
@@ -124,9 +124,8 @@ main (int argc, char **argv)
 		printf("I got this far\n");
 		fflush(stdout);
 		message = strtok(msg, del);
-		sprintf(option1, "%s", strtok(NULL, del));
-		option = option1[0];
-		switch(option){
+		sprintf(option, "%s", strtok(NULL, del));
+		switch(option[0]){
 
 			case 'B':
 				printf("Broadcast\n");
@@ -168,7 +167,7 @@ main (int argc, char **argv)
 		}
 		sprintf(name1, "%s", strtok(NULL, ":"));
 		printf("%s\n", message);
-		printf("%i\n", option);
+		printf("%s\n", option);
 		printf("%s\n", name1);
 		fflush(stdout);
 	}
