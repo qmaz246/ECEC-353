@@ -38,6 +38,12 @@ main (int argc, char **argv)
     char arg[20];
 
     /* FIXME: create the needed named semaphores and initialize them to the correct values */
+    sem_t waiting_room;
+    sem_t barber_chair;
+    sem_t done_with_custsomer;
+    sem_t barber_bed;
+
+    int barber_go_home = FALSE;
     
     /* Create the barber process. */
     printf ("Launcher: creating barber proccess\n"); 
