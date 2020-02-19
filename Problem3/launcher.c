@@ -35,15 +35,19 @@ int
 main (int argc, char **argv)
 {
     int i, pid, num_customers;
-    char arg[20];
+    char arg1[20];
+    char arg2[20];
+    char arg3[20];
+    char arg4[20];
+    char arg5[20];
 
-    /* FIXME: create the needed named semaphores and initialize them to the correct values */
-    sem_t waiting_room;
-    sem_t barber_chair;
-    sem_t done_with_custsomer;
-    sem_t barber_bed;
 
-    int barber_go_home = FALSE;
+    /* FIXME: create the needed *named* semaphores and initialize them to the correct values */
+    sem_t *waiting_room = sem_open("/waiting_room_eqm23", O_CREAT, S_IRUSR | S_IWUSR, WAITING_ROOM_SIZE);
+    sem_t *barber_chair = sem_open("/barber_chair_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 1);
+    sem_t *done_with_customer = sem_open("/done_with_customer_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 0);
+    sem_t *barber_bed = sem_open("/barber_bed_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 0);
+
     
     /* Create the barber process. */
     printf ("Launcher: creating barber proccess\n"); 
@@ -54,12 +58,14 @@ main (int argc, char **argv)
             exit (EXIT_FAILURE);
 
         case 0: /* Child process */
-            /* Execute the barber process, passing the waiting room size as the argument. 
-             * FIXME: Also, pass the names of the ncessary semaphores as additional command-line 
-             * arguments. 
-             */
-            snprintf (arg, sizeof (arg), "%d", WAITING_ROOM_SIZE);
-            execlp ("./barber", "barber", arg, (char *) NULL);
+            /* Execute the barber process, passing the waiting room size and semaphores */ 
+             
+            snprintf (arg1, sizeof (arg1), "%d", WAITING_ROOM_SIZE);
+            snprintf (arg2, sizeof (arg2), "%s", "/done_with_customer_eqm23");
+            snprintf (arg3, sizeof (arg3), "%s", "/barber_bed_eqm23");
+
+	    
+            execlp ("./barber", "barber", arg1, arg2, arg3, (char *) NULL);
             perror ("exec"); /* If exec succeeds, we should get here */
             exit (EXIT_FAILURE);
         
@@ -80,12 +86,15 @@ main (int argc, char **argv)
                 exit (EXIT_FAILURE);
 
             case 0: /* Child code */
-                /* Pass the customer number as the first argument.
-                 * FIXME: pass the names of the necessary semaphores as additional 
-                 * command-line arguments.
-                 */
+                /* Pass the customer number, and semahpore as arguments */
                 snprintf (arg, sizeof (arg), "%d", i);
-                execlp ("./customer", "customer", arg, (char *) NULL);
+		snprintf (arg1, sizeof (arg1), "%d", WAITING_ROOM_SIZE);
+           	snprintf (arg2, sizeof (arg2), "%s", "/waiting_room_eqm23");
+            	snprintf (arg3, sizeof (arg3), "%s", "/barber_chair_eqm23");
+            	snprintf (arg4, sizeof (arg4), "%s", "/done_with_customer_eqm23");
+            	snprintf (arg5, sizeof (arg5), "%s", "/barber_bed_eqm23");
+
+                execlp ("./customer", "customer", arg, arg1, arg2, arg3, arg4, arg5, (char *) NULL);
                 perror ("exec");
                 exit (EXIT_FAILURE);
 
@@ -98,7 +107,11 @@ main (int argc, char **argv)
     for (i = 0; i < (num_customers + 1); i++)
         wait (NULL);
 
-    /* FIXME: Unlink all the semaphores */
-
+    /* Unlink all the semaphores */
+    if(sem_unlink("/waiting_room_eqm23") == 0 || sem_unlink("/barber_chair_eqm23") == 0 || sem_unlink("/done_with_customer_eqm23") == 0 || sem_unlink("/barber_bed_eqm23") == 0){
+	perror("sem_unlink");
+	exit(EXIT_FAILURE);
+    }
+    
     exit (EXIT_SUCCESS);
 }

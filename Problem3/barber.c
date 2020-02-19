@@ -40,6 +40,11 @@ main (int argc, char **argv)
     /* FIXME: Unpack the semaphore names from the rest of the command-line arguments 
      * and open them for use.
      */
+    sem_t *waiting_room = sem_open("/waiting_room_eqm23", O_CREAT, S_IRUSR | S_IWUSR, WAITING_ROOM_SIZE);
+    sem_t *barber_chair = sem_open("/barber_chair_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 1);
+    sem_t *done_with_customer = sem_open("/done_with_customer_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 0);
+    sem_t *barber_bed = sem_open("/barber_bed_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 0);
+	
 
     /* FIXME: Stay in a loop, cutting hair for customers as they arrive. 
      * If no customer wakes the barber within TIME_OUT seconds, barber
