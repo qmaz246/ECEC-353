@@ -7,8 +7,8 @@
  * Author: Naga Kandasamy
  * Date: February 7, 2020
  *
- * Student/team: FIXME
- * Date: FIXME
+ * Student/team: Edward Mazzilli and Omer Odermis 
+ * Date: February 23rd, 2020
  */
 
 #include <stdio.h>
@@ -19,6 +19,8 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #define MIN_CUSTOMERS 10
 #define MAX_CUSTOMERS 20
@@ -35,22 +37,29 @@ int
 main (int argc, char **argv)
 {
     int i, pid, num_customers;
+    char arg[20];
     char arg1[20];
     char arg2[20];
     char arg3[20];
     char arg4[20];
     char arg5[20];
+    int value;
+    int oflag = O_CREAT;
+    oflag |= O_EXCL;
+    mode_t perms = S_IRUSR | S_IWUSR;
 
+    /* Create the needed *named* semaphores and initialize them to the correct values */
+    sem_t *waiting_room = sem_open("/waiting_room_eqm23", oflag, perms, WAITING_ROOM_SIZE);
+    sem_t *barber_chair = sem_open("/barber_chair_eqm23", oflag, perms, 1);
+    sem_t *done_with_customer = sem_open("/done_with_customer_eqm23", oflag, perms, 0);
+    sem_t *barber_bed = sem_open("/barber_bed_eqm23", oflag, perms, 0);
 
-    /* FIXME: create the needed *named* semaphores and initialize them to the correct values */
-    sem_t *waiting_room = sem_open("/waiting_room_eqm23", O_CREAT, S_IRUSR | S_IWUSR, WAITING_ROOM_SIZE);
-    sem_t *barber_chair = sem_open("/barber_chair_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 1);
-    sem_t *done_with_customer = sem_open("/done_with_customer_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 0);
-    sem_t *barber_bed = sem_open("/barber_bed_eqm23", O_CREAT, S_IRUSR | S_IWUSR, 0);
+    sem_getvalue(waiting_room, &value); 
+    printf("%d\n", value);
 
-    
     /* Create the barber process. */
-    printf ("Launcher: creating barber proccess\n"); 
+    printf ("=== Launcher: creating barber proccess ===\n"); 
+    fflush(stdout);
     pid = fork ();
     switch (pid) {
         case -1:
@@ -76,9 +85,9 @@ main (int argc, char **argv)
     /* Create the customer processes */
     srand (time (NULL));
     num_customers = rand_int (MIN_CUSTOMERS, MAX_CUSTOMERS);
-    printf ("Launcher: creating %d customers\n", num_customers);
-
-    for (i = 0; i < num_customers; i++){
+    printf ("=== Launcher: creating %d customers ===\n", num_customers);
+    fflush(stdout);
+    for (i = 0; i < 1; i++){
         pid = fork ();
         switch (pid) {
             case -1:
@@ -108,7 +117,12 @@ main (int argc, char **argv)
         wait (NULL);
 
     /* Unlink all the semaphores */
-    if(sem_unlink("/waiting_room_eqm23") == 0 || sem_unlink("/barber_chair_eqm23") == 0 || sem_unlink("/done_with_customer_eqm23") == 0 || sem_unlink("/barber_bed_eqm23") == 0){
+    if(sem_close(waiting_room) != 0 || sem_close(barber_chair) != 0 || sem_close(done_with_customer) != 0 || sem_close(barber_bed) != 0){
+	perror("sem_close");
+	exit(EXIT_FAILURE);
+    }
+    
+    if(sem_unlink("/waiting_room_eqm23") != 0 || sem_unlink("/barber_chair_eqm23") != 0 || sem_unlink("/done_with_customer_eqm23") != 0 || sem_unlink("/barber_bed_eqm23") != 0){
 	perror("sem_unlink");
 	exit(EXIT_FAILURE);
     }

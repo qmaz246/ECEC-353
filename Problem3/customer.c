@@ -13,6 +13,10 @@
 #include <semaphore.h>
 #include <math.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #define MIN_TIME 2
 #define MAX_TIME 10
@@ -29,17 +33,36 @@ int
 main (int argc, char **argv)
 {
     srand (time (NULL)); 
+//    int oflag = O_CREAT;
 
     int customer_number = atoi (argv[1]);
-    /* FIXME: unpack the semaphore names from the rest of the arguments */
+    /* Unpack the semaphore names from the rest of the arguments */
+    sem_t *waiting_room = sem_open(argv[2], 0);
+    sem_t *barber_chair = sem_open(argv[3], 0);
+    sem_t *done_with_customer = sem_open(argv[4], 0);
+    sem_t *barber_bed = sem_open(argv[4], 0);
+
     
-    printf ("Customer %d: Walking to barber shop\n", customer_number);
+    printf ("Customer %d: Aight, time to get a new doo\n", customer_number);
+    fflush(stdout);			
     walk (MIN_TIME, MAX_TIME);
 
-    /* FIXME: Get hair cut by barber and go home. */
+    /* Get hair cut by barber and go home. */
+    printf("Customer %d: I'm here bitches\n", customer_number);
+    fflush(stdout);
+    sem_wait(waiting_room);
 
+    // Deadlocks here 
+    printf("Mr. Customer %d Have a seat\n", customer_number);
+    fflush(stdout);
+    sem_wait(barber_chair);
+    sem_post(waiting_room);
+    sem_post(barber_bed);
+    sem_wait(done_with_customer);
+    sem_post(barber_chair);
 
-    printf ("Customer %d: all done\n", customer_number);
+    printf ("Customer %d: Looks ok, i won't kill you today\n", customer_number);
+    fflush(stdout);
 
     exit (EXIT_SUCCESS);
 }
