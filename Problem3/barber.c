@@ -26,6 +26,10 @@
 #define FALSE 0 
 #define ALARM_TIME 10
 
+static void alarm_handler (void); /* Signal handler to catch the ALRM signal */
+
+int barber_go_home = FALSE;
+
 /* Simulate cutting hair, by sleeping for some time between [min. max] in seconds */
 void
 cut_hair (int min, int max) 
@@ -34,22 +38,6 @@ cut_hair (int min, int max)
     return;
 }
 
-/* The user-defined signal handler for SIGALRM */
-static void 
-alarm_handler (void)
-{
-    printf ("Alarm caught. \n");
-    signal (SIGALRM, alarm_handler); /* Restablish handler for next occurrence */
-    return;
-}
-
-/* The user-defined signal handler for SIGINT */
-static void 
-ctrl_c_handler (void)
-{
-    int_flag = 1;
-    return;
-}
 
 int 
 main (int argc, char **argv)
@@ -64,18 +52,11 @@ main (int argc, char **argv)
         exit (0);
     }
 
-    /* Set up another signal handler to catch SIGINT */
-    if (signal (SIGINT, ctrl_c_handler) == SIG_ERR){ 
-        printf ("Cannot catch SIGINT \n");
-        exit (0);
-    }
-
     printf ("Barber: Opening up the shop\n");
     fflush(stdout); 
     int waiting_room_size = atoi (argv[1]);
     printf ("Barber: size of waiting room = %d\n", waiting_room_size);
     fflush(stdout);
-    int barber_go_home = FALSE;
 
     /* Unpack the semaphore names from the rest of the command-line arguments 
      * and open them for use.
@@ -93,7 +74,7 @@ main (int argc, char **argv)
     while(!barber_go_home){
 	printf("Barber is sleeping\n");
 	fflush(stdout);
-	alarm (alarm_interval); /* Set our alarm to ring at the specified interval */ 
+	alarm (ALARM_TIME); /* Set our alarm to ring at the specified interval */ 
 	sem_wait(barber_bed);
 
 	if(!barber_go_home){
@@ -111,4 +92,13 @@ main (int argc, char **argv)
 
     }
     exit (EXIT_SUCCESS);
+}
+
+/* The user-defined signal handler for SIGALRM */
+static void 
+alarm_handler (void)
+{
+    printf ("*looks right*\n*looks left*\nAyy nobody's coming i should just go home\n");
+    barber_go_home = TRUE;
+    return;
 }
