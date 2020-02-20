@@ -17,12 +17,14 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <signal.h>
 
 #define MIN_TIME 2
 #define MAX_TIME 5
 #define TIME_OUT 10
 #define TRUE 1
 #define FALSE 0 
+#define ALARM_TIME 10
 
 /* Simulate cutting hair, by sleeping for some time between [min. max] in seconds */
 void
@@ -32,12 +34,41 @@ cut_hair (int min, int max)
     return;
 }
 
+/* The user-defined signal handler for SIGALRM */
+static void 
+alarm_handler (void)
+{
+    printf ("Alarm caught. \n");
+    signal (SIGALRM, alarm_handler); /* Restablish handler for next occurrence */
+    return;
+}
+
+/* The user-defined signal handler for SIGINT */
+static void 
+ctrl_c_handler (void)
+{
+    int_flag = 1;
+    return;
+}
+
 int 
 main (int argc, char **argv)
 {
 //    int oflag = O_CREAT;
 
     srand (time (NULL)); 
+
+    /* Set up our signal handler to catch SIGALRM */
+    if (signal (SIGALRM, alarm_handler) == SIG_ERR){ 
+        printf ("Cannot catch SIGALRM \n");
+        exit (0);
+    }
+
+    /* Set up another signal handler to catch SIGINT */
+    if (signal (SIGINT, ctrl_c_handler) == SIG_ERR){ 
+        printf ("Cannot catch SIGINT \n");
+        exit (0);
+    }
 
     printf ("Barber: Opening up the shop\n");
     fflush(stdout); 
@@ -62,6 +93,7 @@ main (int argc, char **argv)
     while(!barber_go_home){
 	printf("Barber is sleeping\n");
 	fflush(stdout);
+	alarm (alarm_interval); /* Set our alarm to ring at the specified interval */ 
 	sem_wait(barber_bed);
 
 	if(!barber_go_home){
