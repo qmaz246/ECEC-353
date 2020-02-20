@@ -37,13 +37,15 @@ int
 main (int argc, char **argv)
 {
     int i, pid, num_customers;
-    char arg[20];
-    char arg1[20];
-    char arg2[20];
-    char arg3[20];
-    char arg4[20];
-    char arg5[20];
-    int value;
+    char arg[40];
+    char arg1[40];
+    char arg2[40];
+    char arg3[40];
+    char arg4[40];
+    char arg5[40];
+    char arga[40];
+    char argb[40];
+    char argd[40];
     int oflag = O_CREAT;
     oflag |= O_EXCL;
     mode_t perms = S_IRUSR | S_IWUSR;
@@ -54,8 +56,6 @@ main (int argc, char **argv)
     sem_t *done_with_customer = sem_open("/done_with_customer_eqm23", oflag, perms, 0);
     sem_t *barber_bed = sem_open("/barber_bed_eqm23", oflag, perms, 0);
 
-    sem_getvalue(waiting_room, &value); 
-    printf("%d\n", value);
 
     /* Create the barber process. */
     printf ("=== Launcher: creating barber proccess ===\n"); 
@@ -69,12 +69,12 @@ main (int argc, char **argv)
         case 0: /* Child process */
             /* Execute the barber process, passing the waiting room size and semaphores */ 
              
-            snprintf (arg1, sizeof (arg1), "%d", WAITING_ROOM_SIZE);
-            snprintf (arg2, sizeof (arg2), "%s", "/done_with_customer_eqm23");
-            snprintf (arg3, sizeof (arg3), "%s", "/barber_bed_eqm23");
+            snprintf (arga, sizeof (arga), "%d", WAITING_ROOM_SIZE);
+            snprintf (argb, sizeof (argb), "%s", "/done_with_customer_eqm23");
+            snprintf (argd, sizeof (argd), "%s", "/barber_bed_eqm23");
 
 	    
-            execlp ("./barber", "barber", arg1, arg2, arg3, (char *) NULL);
+            execlp ("./barber", "barber", arga, argb, argd, (char *) NULL);
             perror ("exec"); /* If exec succeeds, we should get here */
             exit (EXIT_FAILURE);
         
@@ -87,7 +87,7 @@ main (int argc, char **argv)
     num_customers = rand_int (MIN_CUSTOMERS, MAX_CUSTOMERS);
     printf ("=== Launcher: creating %d customers ===\n", num_customers);
     fflush(stdout);
-    for (i = 0; i < 1; i++){
+    for (i = 0; i < num_customers; i++){
         pid = fork ();
         switch (pid) {
             case -1:

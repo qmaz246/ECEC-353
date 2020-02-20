@@ -37,10 +37,10 @@ main (int argc, char **argv)
 
     int customer_number = atoi (argv[1]);
     /* Unpack the semaphore names from the rest of the arguments */
-    sem_t *waiting_room = sem_open(argv[2], 0);
-    sem_t *barber_chair = sem_open(argv[3], 0);
-    sem_t *done_with_customer = sem_open(argv[4], 0);
-    sem_t *barber_bed = sem_open(argv[4], 0);
+    sem_t *waiting_room = sem_open(argv[3], 0);
+    sem_t *barber_chair = sem_open(argv[4], 0);
+    sem_t *done_with_customer = sem_open(argv[5], 0);
+    sem_t *barber_bed = sem_open(argv[6], 0);
 
     
     printf ("Customer %d: Aight, time to get a new doo\n", customer_number);
@@ -50,10 +50,14 @@ main (int argc, char **argv)
     /* Get hair cut by barber and go home. */
     printf("Customer %d: I'm here bitches\n", customer_number);
     fflush(stdout);
-    sem_wait(waiting_room);
+    if(sem_trywait(waiting_room) != 0){
+	printf("Customer %d: Dang guess I'll come another day\n", customer_number);
+	fflush(stdout);
+	exit(EXIT_SUCCESS);
+    }
 
     // Deadlocks here 
-    printf("Mr. Customer %d Have a seat\n", customer_number);
+    printf("Customer %d: Ayy they got Highlights!\n", customer_number);
     fflush(stdout);
     sem_wait(barber_chair);
     sem_post(waiting_room);
@@ -61,7 +65,7 @@ main (int argc, char **argv)
     sem_wait(done_with_customer);
     sem_post(barber_chair);
 
-    printf ("Customer %d: Looks ok, i won't kill you today\n", customer_number);
+    printf ("Customer %d: Next time I want an Afro, see ya!\n", customer_number);
     fflush(stdout);
 
     exit (EXIT_SUCCESS);
