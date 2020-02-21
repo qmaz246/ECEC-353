@@ -117,15 +117,15 @@ main (int argc, char **argv)
         wait (NULL);
 
     /* Unlink all the semaphores */
-    if(sem_close(waiting_room) != 0 || sem_close(barber_chair) != 0 || sem_close(done_with_customer) != 0 || sem_close(barber_bed) != 0){
-	perror("sem_close");
-	exit(EXIT_FAILURE);
-    }
+    sem_close(waiting_room);
+    sem_close(barber_chair);
+    sem_close(done_with_customer);
+    sem_close(barber_bed);
     
-    if(sem_unlink("/waiting_room_eqm23") != 0 || sem_unlink("/barber_chair_eqm23") != 0 || sem_unlink("/done_with_customer_eqm23") != 0 || sem_unlink("/barber_bed_eqm23") != 0){
-	perror("sem_unlink");
-	exit(EXIT_FAILURE);
-    }
+    sem_unlink("/waiting_room_eqm23");
+    sem_unlink("/barber_chair_eqm23");
+    sem_unlink("/done_with_customer_eqm23");
+    sem_unlink("/barber_bed_eqm23");
     
     exit (EXIT_SUCCESS);
 }

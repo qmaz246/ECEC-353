@@ -48,15 +48,14 @@ main (int argc, char **argv)
     walk (MIN_TIME, MAX_TIME);
 
     /* Get hair cut by barber and go home. */
-    printf("Customer %d: I'm here bitches\n", customer_number);
+    printf("Customer %d: *Kicks down door* here's Customer %d!\n", customer_number, customer_number);
     fflush(stdout);
     if(sem_trywait(waiting_room) != 0){
-	printf("Customer %d: Dang guess I'll come another day\n", customer_number);
+	printf("Customer %d: *Reattaches door* Sorry, I'll come another day\n", customer_number);
 	fflush(stdout);
 	exit(EXIT_SUCCESS);
     }
 
-    // Deadlocks here 
     printf("Customer %d: Ayy they got Highlights!\n", customer_number);
     fflush(stdout);
     sem_wait(barber_chair);
@@ -65,7 +64,7 @@ main (int argc, char **argv)
     sem_wait(done_with_customer);
     sem_post(barber_chair);
 
-    printf ("Customer %d: Next time I want an Afro, see ya!\n", customer_number);
+    printf ("Customer %d: Thank you for the trim, see ya!\n", customer_number);
     fflush(stdout);
 
     exit (EXIT_SUCCESS);

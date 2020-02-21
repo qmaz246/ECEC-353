@@ -96,11 +96,10 @@ main (int argc, char **argv)
 
 /* The user-defined signal handler for SIGALRM */
 static void
-alarm_handler (int dummyNumber)
+alarm_handler (int dumb)
 {
-    int dumber = dummyNumber;
-    dumber = dumber * 2;
-    printf ("*looks right*\n*looks left*\nAyy nobody's coming i should just go home\n");
+    dumb = dumb * 2;
+    printf ("*looks right*\n*looks left*\nAyy nobody's coming I should just go home\n");
     barber_go_home = TRUE;
     
 }
