@@ -26,7 +26,7 @@
 #define FALSE 0 
 #define ALARM_TIME 10
 
-static void alarm_handler (void); /* Signal handler to catch the ALRM signal */
+static void alarm_handler (int); /* Signal handler to catch the ALRM signal */
 
 int barber_go_home = FALSE;
 
@@ -95,10 +95,12 @@ main (int argc, char **argv)
 }
 
 /* The user-defined signal handler for SIGALRM */
-static void 
-alarm_handler (void)
+static void
+alarm_handler (int dummyNumber)
 {
+    int dumber = dummyNumber;
+    dumber = dumber * 2;
     printf ("*looks right*\n*looks left*\nAyy nobody's coming i should just go home\n");
     barber_go_home = TRUE;
-    return;
+    
 }
