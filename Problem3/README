@@ -1,0 +1,8 @@
+Programming Exercise 3: Sleeping Barber
+Authors: Edward Mazzilli / Omer Odermis
+
+To Compile, simply run:
+[]$ make
+
+to run the simulation, run:
+[] ./launcher
