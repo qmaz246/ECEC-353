@@ -56,14 +56,20 @@ int main (int argc, char **argv)
 
 	float h = (b - a)/(float) n; /* Base of each trapezoid */  
 	printf ("The base of the trapezoid is %f\n", h);
-
+	struct timeval start, stop;
+	gettimeofday(&start, NULL);
 	double reference = compute_gold (a, b, n, h);
+	gettimeofday(&stop, NULL);
 	printf ("Reference solution computed using single-threaded version = %f\n", reference);
+	printf ("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
 
 	/* Write this function to complete the trapezoidal rule using pthreads. */
   	int num_threads = atoi (argv[4]); /* Number of threads */
+	gettimeofday(&start, NULL);
 	double pthread_result = compute_using_pthreads (a, b, n, h, num_threads);
+	gettimeofday(&stop, NULL);
 	printf ("Solution computed using %d threads = %f\n", num_threads, pthread_result);
+	printf ("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
 
    	exit (EXIT_SUCCESS);
 } 
@@ -121,7 +127,10 @@ double compute_using_pthreads (float a, float b, int n, float h, int num_threads
 	for(i = 0; i < num_threads; i++){
 		args_for_thread[i].tid = i;
 		args_for_thread[i].a = a;
-		args_for_thread[i].b = a+ab_step;
+		if(i == num_threads-1)
+			args_for_thread[i].b = b;
+		else
+			args_for_thread[i].b = a+ab_step;
 		args_for_thread[i].n = divided_n;
 		args_for_thread[i].h = h;
 		args_for_thread[i].partial_integral = partial_integral;
