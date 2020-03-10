@@ -19,7 +19,7 @@
 #define MAX_VALUE 1023
 
 /* Comment out if you don't need debug info */
-// #define DEBUG
+#define DEBUG
 // #define DEBUG_MORE_VERBOSE
 
 int compute_gold (int *, int *, int, int);
@@ -30,6 +30,27 @@ void compute_using_pthreads (int *, int *, int, int, int);
 int check_if_sorted (int *, int);
 int compare_results (int *, int *, int);
 void print_histogram (int *, int, int);
+
+/* Add mutex code for global histogram update */
+int bin_lock[MAX_VALUE+1];
+memset(bin_lock, 1, MAX_VALUE);
+
+pthread_mutex_t bin_mutex[MAX_VALUE+1];
+
+typedef struct args_for_thread
+{
+	int	*input_array;
+	int	*sorted_array;
+	int	num_elements;	
+	int	start;
+	int	range;
+	int	num_threads;	
+	int	tid; 
+
+} ARGS_FOR_THREAD;
+
+
+int *global_bin_array;
 
 int 
 main (int argc, char **argv)
@@ -144,11 +165,62 @@ compute_gold (int *input_array, int *sorted_array, int num_elements, int range)
     return 1;
 }
 
+/* p_threads implementation of counting sort. */
+int 
+compute_silver (int *input_array, int *sorted_array, int num_elements, int start, int range, int num_threads)
+{
+    /* Compute histogram. Generate bin for each element within 
+     * the range. 
+     * */
+    int i, j;
+    int num_bins = range + 1;
+    int *bin = (int *) malloc (num_bins * sizeof (int));    
+    if (bin == NULL) {
+        perror ("Malloc");
+        return 0;
+    }
+
+    memset(bin, 0, num_bins); /* Initialize histogram bins to zero */ 
+    for (i = start; i < num_elements; i = i + num_threads)
+        bin[input_array[i]]++;
+
+#ifdef DEBUG_MORE_VERBOSE
+    print_histogram (bin, num_bins, num_elements);
+#endif
+
+    /* Generate the sorted array. */
+    int idx = 0;
+    for (i = 0; i < num_bins; i++) {
+        for (j = 0; j < bin[i]; j++) {
+            sorted_array[idx++] = i;
+        }
+    }
+
+    return 1;
+}
+
 /* FIXME: Write multi-threaded implementation of counting sort. */
 void 
 compute_using_pthreads (int *input_array, int *sorted_array, int num_elements, int range, int num_threads)
 {
-    return;
+	pthread_t	*thread_id;
+	pthread_attr_t	attributes;
+	pthread_attr_init(&attributes);
+	thread_id = (pthread_t *) malloc (sizeof(pthread_t) * num_threads);
+	ARGS_FOR_THREAD *args_for_thread = (ARGS_FOR_THREAD *) malloc (sizeof (ARGS_FOR_THREAD) * num_threads);
+
+
+	for( int i = 0; i < num_thread; i++){
+		args_for_thread[i].input_array = &input_array;
+		args_for_thread[i].sorted_array = &sorted_array;
+		args_for_thread[i].num_elements = num_elements;
+		args_for_thread[i].start = i;
+		args_for_thread[i].range = range;
+		args_for_thread[i].num_threads = num_threads;
+		pthread_create(&thread_id[i], &attributes, computer_silver, (void *) &args_for_threads[1]);
+	
+	}
+	return;
 }
 
 /* Check if the array is sorted. */
