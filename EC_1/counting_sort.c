@@ -33,6 +33,8 @@ void compute_using_pthreads (int *, int *, int **, int, int, int);
 int check_if_sorted (int *, int);
 int compare_results (int *, int *, int);
 void print_histogram (int *, int, int);
+void print_histogram_thr (int *, int, int, int);
+
 
 
 /* Not yet friendo: 
@@ -47,7 +49,6 @@ typedef struct args_for_thread
 {
 	int	tid;
 	int	*input_array;
-	int	*sorted_array;
 	int	**local_array;
 	int	num_elements;	
 	int	start;
@@ -153,6 +154,7 @@ main (int argc, char **argv)
     	}
     	memset (local_array[i], 0, (range + 1));
     }
+    global_bin_array = (int *) malloc ((range + 1) * sizeof (int));
 
     compute_using_pthreads (input_array, sorted_array_g, local_array, num_elements, range, num_threads);
 
@@ -207,17 +209,21 @@ void *
 compute_silver (void *args)
 {
     /* Compute histogram. Generate bin for each element within 
-     * the range. 
-     * */
+     * the range. */
 	ARGS_FOR_THREAD *args_for_me = (ARGS_FOR_THREAD *) args; /* Typecast argument passed to function to appropriate type */
 	printf("Thread %d reporting for duty\n", args_for_me->tid);
-    	int i; //, j;
+    	int i, j;
 	int num_bins = args_for_me->range + 1;
+
+	printf("waiting for all threads to spawn\n");
+	barrier_sync(&barrier, args_for_me->tid, args_for_me->num_threads);
+	printf("Thread %d is starting to stride\n", args_for_me->tid);
+
     	for (i = args_for_me->start; i < args_for_me->num_elements; i = i + args_for_me->num_threads)
     		args_for_me->local_array[args_for_me->tid][args_for_me->input_array[i]]++;
 
 #ifdef DEBUG_MORE_VERBOSE
-    	print_histogram (args_for_me->local_array[args_for_me->tid], num_bins, args_for_me->num_elements);
+    	print_histogram_thr (args_for_me->local_array[args_for_me->tid], num_bins, args_for_me->num_elements, args_for_me->tid);
 #endif
 
 	printf("Thread %d is at the barrier. \n", args_for_me->tid);
@@ -225,19 +231,16 @@ compute_silver (void *args)
 	printf("The flood gates hath opened for thread %d. \n", args_for_me->tid);
 
 	
-    /* Generate the sorted array. */
-	/*
-    	int idx = 0;
-    	for (i = 0; i < num_bins; i++) {
-    	    for (j = 0; j < bin[i]; j++) {
-    	        sorted_array[idx++] = i;
+    	/* Stride through local histograms to generate global histogram */
+    	for (i = args_for_me->start; i < num_bins; i=i+args_for_me->num_threads) {
+    	    for (j = 0; j < args_for_me->num_threads; j++) {
+    	        global_bin_array[i] += args_for_me->local_array[j][i];
     	    }
     	}
-*/
     	pthread_exit(NULL);
 }
 
-/* FIXME: Write multi-threaded implementation of counting sort. */
+/* Fix Me: Write multi-threaded implementation of counting sort. */
 void 
 compute_using_pthreads (int *input_array, int *sorted_array_g, int **local_array, int num_elements, int range, int num_threads)
 {
@@ -246,12 +249,12 @@ compute_using_pthreads (int *input_array, int *sorted_array_g, int **local_array
 	pthread_attr_init(&attributes);
 	thread_id = (pthread_t *) malloc (sizeof(pthread_t) * num_threads);
 	ARGS_FOR_THREAD *args_for_thread = (ARGS_FOR_THREAD *) malloc (sizeof (ARGS_FOR_THREAD) * num_threads);
-	int i;
+	int i, j;
+	int num_bins = range + 1;
 	printf("Spawning Threads to perform counting sum\n");
 	for(i = 0; i < num_threads; i++){
 		args_for_thread[i].tid = i;
 		args_for_thread[i].input_array = input_array;
-		args_for_thread[i].sorted_array = sorted_array_g;
 		args_for_thread[i].local_array = local_array;
 		args_for_thread[i].num_elements = num_elements;
 		args_for_thread[i].start = i;
@@ -264,6 +267,18 @@ compute_using_pthreads (int *input_array, int *sorted_array_g, int **local_array
 	for(i = 0; i < num_threads; i++){
 		pthread_join(thread_id[i], NULL);
 	}
+
+#ifdef DEBUG_MORE_VERBOSE
+	print_histogram (global_bin_array, num_bins, num_elements);
+#endif
+
+	/* Generate the sorted array. */
+    	int idx = 0;
+    	for (i = 0; i < num_bins; i++) {
+        	for (j = 0; j < global_bin_array[i]; j++) {
+            		sorted_array_g[idx++] = i;
+        	}
+    	}
 
 	return;
 }
@@ -356,6 +371,26 @@ print_histogram (int *bin, int num_bins, int num_elements)
 
     return;
 }
+
+/* Helper function to print the contents of the histogram for pthread. */
+void 
+print_histogram_thr (int *bin, int num_bins, int num_elements, int tid)
+{
+    int num_histogram_entries = 0;
+    int i;
+
+    for (i = 0; i < num_bins; i++) {
+        printf ("Thread %d - Bin %d: %d\n", tid, i, bin[i]);
+        num_histogram_entries += bin[i];
+    }
+
+    printf ("Thread %d - Number of elements in the input array = %d \n", tid, num_elements);
+    printf ("Thread %d - Number of histogram elements = %d \n", tid, num_histogram_entries);
+
+    return;
+}
+
+
 
 
 
