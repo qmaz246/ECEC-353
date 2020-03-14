@@ -39,8 +39,10 @@ pthread_mutex_t bin_mutex[MAX_VALUE+1];
 
 typedef struct args_for_thread
 {
+	int	tid;
 	int	*input_array;
 	int	*sorted_array;
+	int	*local_array;
 	int	num_elements;	
 	int	start;
 	int	range;
@@ -112,13 +114,13 @@ main (int argc, char **argv)
     /* FIXME: Write function to sort the elements in the array in parallel fashion. 
      * The result should be placed in sorted_array_mt. */
     printf ("\nSorting array using pthreads\n");
-    sorted_array_d = (int *) malloc (num_elements * sizeof (int));
-    if (sorted_array_d == NULL) {
+    sorted_array_g = (int *) malloc (num_elements * sizeof (int));
+    if (sorted_array_g == NULL) {
         perror ("Malloc");
         exit (EXIT_FAILURE);
     }
-    memset (sorted_array_d, 0, num_elements);
-    compute_using_pthreads (input_array, sorted_array_d, num_elements, range, num_threads);
+    memset (sorted_array_g, 0, num_elements);
+    compute_using_pthreads (input_array, sorted_array_g, num_elements, range, num_threads);
 
     /* Check the two results for correctness. */
     printf ("\nComparing reference and pthread results\n");
@@ -207,12 +209,19 @@ compute_using_pthreads (int *input_array, int *sorted_array, int num_elements, i
 	pthread_attr_t	attributes;
 	pthread_attr_init(&attributes);
 	thread_id = (pthread_t *) malloc (sizeof(pthread_t) * num_threads);
+	local_array = (int *) malloc (num_threads * sizeof (int));
+    		if (sorted_array_g == NULL) {
+        	perror ("Malloc");
+        	exit (EXIT_FAILURE);
+    	}	
 	ARGS_FOR_THREAD *args_for_thread = (ARGS_FOR_THREAD *) malloc (sizeof (ARGS_FOR_THREAD) * num_threads);
 
 
 	for( int i = 0; i < num_thread; i++){
+		args_for_thread[i].tid = i;
 		args_for_thread[i].input_array = &input_array;
 		args_for_thread[i].sorted_array = &sorted_array;
+		args_for_thread[i].local_array = &local_array;
 		args_for_thread[i].num_elements = num_elements;
 		args_for_thread[i].start = i;
 		args_for_thread[i].range = range;
@@ -312,3 +321,27 @@ print_histogram (int *bin, int num_bins, int num_elements)
     return;
 }
 
+
+
+void
+barrier_sync (BARRIER *barrier, int thread_number)
+{
+    sem_wait (&(barrier->counter_sem)); /* Obtain the lock on the counter */
+
+    /* Check if all threads before us, that is NUM_THREADS-1 threads have reached this point */
+    if (barrier->counter == (num_threads - 1)) {
+        barrier->counter = 0; /* Reset the counter */
+					 
+        sem_post (&(barrier->counter_sem)); 
+					 
+        /* Signal the blocked threads that it is now safe to cross the barrier */			 
+        printf("Thread number %d is signalling other threads to proceed. \n", thread_number); 			 
+        for (int i = 0; i < (num_threads - 1); i++)
+            sem_post (&(barrier->barrier_sem));
+    } 
+    else {
+        barrier->counter++; // Increment the counter
+        sem_post (&(barrier->counter_sem)); // Release the lock on the counter
+        sem_wait (&(barrier->barrier_sem)); // Block on the barrier semaphore and wait for someone to signal us when it is safe to cross
+    }
+}
