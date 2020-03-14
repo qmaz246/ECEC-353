@@ -13,46 +13,60 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
+#include <pthread.h>
+#include <semaphore.h>
 
 /* Do not change the range value. */
 #define MIN_VALUE 0 
-#define MAX_VALUE 1023
+#define MAX_VALUE 10
 
 /* Comment out if you don't need debug info */
-#define DEBUG
-// #define DEBUG_MORE_VERBOSE
+ #define DEBUG
+#define DEBUG_MORE_VERBOSE
 
 int compute_gold (int *, int *, int, int);
+void *compute_silver(void *);
 int rand_int (int, int);
 void print_array (int *, int);
 void print_min_and_max_in_array (int *, int);
-void compute_using_pthreads (int *, int *, int, int, int);
+void compute_using_pthreads (int *, int *, int **, int, int, int);
 int check_if_sorted (int *, int);
 int compare_results (int *, int *, int);
 void print_histogram (int *, int, int);
 
-/* Add mutex code for global histogram update */
+
+/* Not yet friendo: 
+ * Add mutex code for global histogram update
 int bin_lock[MAX_VALUE+1];
 memset(bin_lock, 1, MAX_VALUE);
 
 pthread_mutex_t bin_mutex[MAX_VALUE+1];
+*/
 
 typedef struct args_for_thread
 {
 	int	tid;
 	int	*input_array;
 	int	*sorted_array;
-	int	*local_array;
+	int	**local_array;
 	int	num_elements;	
 	int	start;
 	int	range;
 	int	num_threads;	
-	int	tid; 
 
 } ARGS_FOR_THREAD;
 
+typedef struct barrier_struct {
+	sem_t counter_sem;
+	sem_t barrier_sem;
+	int counter;
+} BARRIER;
 
+BARRIER barrier;
 int *global_bin_array;
+void barrier_sync (BARRIER *, int, int);
+
+/*------------------------Main-----------------------------*/
 
 int 
 main (int argc, char **argv)
@@ -66,8 +80,13 @@ main (int argc, char **argv)
     int num_threads = atoi (argv[2]);
 
     int range = MAX_VALUE - MIN_VALUE;
-    int *input_array, *sorted_array_reference, *sorted_array_d;
+    int *input_array, *sorted_array_reference, *sorted_array_g, **local_array;
+    int i;
 
+    barrier.counter = 0;
+    sem_init (&barrier.counter_sem, 0, 1); /* Initialize the semaphore protecting the counter to 1 */
+    sem_init (&barrier.barrier_sem, 0, 0); /* Initialize the semaphore protecting the barrier to 0 */
+	
     /* Populate the input array with random integers between [0, RANGE]. */
     printf ("Generating input array with %d elements in the range 0 to %d\n", num_elements, range);
     input_array = (int *) malloc (num_elements * sizeof (int));
@@ -76,7 +95,7 @@ main (int argc, char **argv)
         exit (EXIT_FAILURE);
     }
     srand (time (NULL));
-    for (int i = 0; i < num_elements; i++)
+    for ( i = 0; i < num_elements; i++)
         input_array[i] = rand_int (MIN_VALUE, MAX_VALUE);
 
 #ifdef DEBUG
@@ -105,7 +124,7 @@ main (int argc, char **argv)
         exit (EXIT_FAILURE);
     }
 
-    printf ("Counting sort was successful using reference version\n");
+    printf ("Counting sort was successful using reference version\n\n");
 
 #ifdef DEBUG
     print_array (sorted_array_reference, num_elements);
@@ -113,6 +132,7 @@ main (int argc, char **argv)
 
     /* FIXME: Write function to sort the elements in the array in parallel fashion. 
      * The result should be placed in sorted_array_mt. */
+
     printf ("\nSorting array using pthreads\n");
     sorted_array_g = (int *) malloc (num_elements * sizeof (int));
     if (sorted_array_g == NULL) {
@@ -120,11 +140,25 @@ main (int argc, char **argv)
         exit (EXIT_FAILURE);
     }
     memset (sorted_array_g, 0, num_elements);
-    compute_using_pthreads (input_array, sorted_array_g, num_elements, range, num_threads);
+    local_array = (int **) malloc (num_threads * sizeof (int));
+    if (local_array == NULL) {
+        perror ("Malloc");
+        exit (EXIT_FAILURE);
+    }
+    for(i = 0; i < num_threads; i++){
+	local_array[i] = (int *) malloc ((range + 1) * sizeof (int));
+    	if (local_array[i] == NULL) {
+       		perror ("Malloc");
+        	exit (EXIT_FAILURE);
+    	}
+    	memset (local_array[i], 0, (range + 1));
+    }
+
+    compute_using_pthreads (input_array, sorted_array_g, local_array, num_elements, range, num_threads);
 
     /* Check the two results for correctness. */
     printf ("\nComparing reference and pthread results\n");
-    status = compare_results (sorted_array_reference, sorted_array_d, num_elements);
+    status = compare_results (sorted_array_reference, sorted_array_g, num_elements);
     if (status == 1)
         printf ("Test passed\n");
     else
@@ -168,67 +202,69 @@ compute_gold (int *input_array, int *sorted_array, int num_elements, int range)
 }
 
 /* p_threads implementation of counting sort. */
-int 
-compute_silver (int *input_array, int *sorted_array, int num_elements, int start, int range, int num_threads)
+/* compute_silver (int *input_array, int *sorted_array, int num_elements, int start, int range, int num_threads) */
+void * 
+compute_silver (void *args)
 {
     /* Compute histogram. Generate bin for each element within 
      * the range. 
      * */
-    int i, j;
-    int num_bins = range + 1;
-    int *bin = (int *) malloc (num_bins * sizeof (int));    
-    if (bin == NULL) {
-        perror ("Malloc");
-        return 0;
-    }
-
-    memset(bin, 0, num_bins); /* Initialize histogram bins to zero */ 
-    for (i = start; i < num_elements; i = i + num_threads)
-        bin[input_array[i]]++;
+	ARGS_FOR_THREAD *args_for_me = (ARGS_FOR_THREAD *) args; /* Typecast argument passed to function to appropriate type */
+	printf("Thread %d reporting for duty\n", args_for_me->tid);
+    	int i; //, j;
+	int num_bins = args_for_me->range + 1;
+    	for (i = args_for_me->start; i < args_for_me->num_elements; i = i + args_for_me->num_threads)
+    		args_for_me->local_array[args_for_me->tid][args_for_me->input_array[i]]++;
 
 #ifdef DEBUG_MORE_VERBOSE
-    print_histogram (bin, num_bins, num_elements);
+    	print_histogram (args_for_me->local_array[args_for_me->tid], num_bins, args_for_me->num_elements);
 #endif
 
-    /* Generate the sorted array. */
-    int idx = 0;
-    for (i = 0; i < num_bins; i++) {
-        for (j = 0; j < bin[i]; j++) {
-            sorted_array[idx++] = i;
-        }
-    }
+	printf("Thread %d is at the barrier. \n", args_for_me->tid);
+	barrier_sync(&barrier, args_for_me->tid, args_for_me->num_threads);
+	printf("The flood gates hath opened for thread %d. \n", args_for_me->tid);
 
-    return 1;
+	
+    /* Generate the sorted array. */
+	/*
+    	int idx = 0;
+    	for (i = 0; i < num_bins; i++) {
+    	    for (j = 0; j < bin[i]; j++) {
+    	        sorted_array[idx++] = i;
+    	    }
+    	}
+*/
+    	pthread_exit(NULL);
 }
 
 /* FIXME: Write multi-threaded implementation of counting sort. */
 void 
-compute_using_pthreads (int *input_array, int *sorted_array, int num_elements, int range, int num_threads)
+compute_using_pthreads (int *input_array, int *sorted_array_g, int **local_array, int num_elements, int range, int num_threads)
 {
 	pthread_t	*thread_id;
 	pthread_attr_t	attributes;
 	pthread_attr_init(&attributes);
 	thread_id = (pthread_t *) malloc (sizeof(pthread_t) * num_threads);
-	local_array = (int *) malloc (num_threads * sizeof (int));
-    		if (sorted_array_g == NULL) {
-        	perror ("Malloc");
-        	exit (EXIT_FAILURE);
-    	}	
 	ARGS_FOR_THREAD *args_for_thread = (ARGS_FOR_THREAD *) malloc (sizeof (ARGS_FOR_THREAD) * num_threads);
-
-
-	for( int i = 0; i < num_thread; i++){
+	int i;
+	printf("Spawning Threads to perform counting sum\n");
+	for(i = 0; i < num_threads; i++){
 		args_for_thread[i].tid = i;
-		args_for_thread[i].input_array = &input_array;
-		args_for_thread[i].sorted_array = &sorted_array;
-		args_for_thread[i].local_array = &local_array;
+		args_for_thread[i].input_array = input_array;
+		args_for_thread[i].sorted_array = sorted_array_g;
+		args_for_thread[i].local_array = local_array;
 		args_for_thread[i].num_elements = num_elements;
 		args_for_thread[i].start = i;
 		args_for_thread[i].range = range;
 		args_for_thread[i].num_threads = num_threads;
-		pthread_create(&thread_id[i], &attributes, computer_silver, (void *) &args_for_threads[1]);
+		pthread_create(&thread_id[i], &attributes, compute_silver, (void *) &args_for_thread[i]);
 	
 	}
+
+	for(i = 0; i < num_threads; i++){
+		pthread_join(thread_id[i], NULL);
+	}
+
 	return;
 }
 
@@ -324,7 +360,7 @@ print_histogram (int *bin, int num_bins, int num_elements)
 
 
 void
-barrier_sync (BARRIER *barrier, int thread_number)
+barrier_sync (BARRIER *barrier, int thread_number, int num_threads)
 {
     sem_wait (&(barrier->counter_sem)); /* Obtain the lock on the counter */
 
