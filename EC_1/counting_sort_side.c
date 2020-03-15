@@ -1,10 +1,10 @@
 /* Program to perform counting sort 
  *
- *  * Author: Naga Kandasamy
- *   * Date created: February 24, 2020
- *    * 
- *     * Compile as follows: gcc -o counting_sort counting_sort.c -std=c99 -Wall -O3 -lpthread -lm
- *      */
+ * Author: Naga Kandasamy
+ * Date created: February 24, 2020
+ * 
+ * Compile as follows: gcc -o counting_sort counting_sort.c -std=c99 -Wall -O3 -lpthread -lm
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -15,13 +15,15 @@
 #include <limits.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <float.h>
+
 
 /* Do not change the range value. */
 #define MIN_VALUE 0 
 #define MAX_VALUE 10
 
 /* Comment out if you don't need debug info */
- #define DEBUG
+#define DEBUG
 #define DEBUG_MORE_VERBOSE
 
 int compute_gold (int *, int *, int, int);
@@ -38,11 +40,12 @@ void print_histogram_thr (int *, int, int, int);
 
 
 /* Not yet friendo: 
- *  * Add mutex code for global histogram update
- *  int bin_lock[MAX_VALUE+1];
- *  memset(bin_lock, 1, MAX_VALUE);
- *  pthread_mutex_t bin_mutex[MAX_VALUE+1];
- *  */
+ * Add mutex code for global histogram update
+int bin_lock[MAX_VALUE+1];
+memset(bin_lock, 1, MAX_VALUE);
+
+pthread_mutex_t bin_mutex[MAX_VALUE+1];
+*/
 
 typedef struct args_for_thread
 {
@@ -71,6 +74,7 @@ void barrier_sync (BARRIER *, int, int);
 int 
 main (int argc, char **argv)
 {
+    /*-------------------------------Set up---------------------------*/
     if (argc != 3) {
         printf ("Usage: %s num-elements num-threads\n", argv[0]);
         exit (EXIT_FAILURE);
@@ -104,7 +108,7 @@ main (int argc, char **argv)
 #endif
 
     /* Sort the elements in the input array using the reference implementation. 
- *      * The result is placed in sorted_array_reference. */
+     * The result is placed in sorted_array_reference. */
     printf ("\nSorting array using serial version\n");
     int status;
     sorted_array_reference = (int *) malloc (num_elements * sizeof (int));
@@ -113,10 +117,13 @@ main (int argc, char **argv)
         exit (EXIT_FAILURE);
     }
     memset (sorted_array_reference, 0, num_elements);
+    struct timeval start, stop;
+    gettimeofday(&start, NULL);
     status = compute_gold (input_array, sorted_array_reference, num_elements, range);
     if (status == 0) {
         exit (EXIT_FAILURE);
     }
+    gettimeofday(&stop, NULL);
 
     status = check_if_sorted (sorted_array_reference, num_elements);
     if (status == 0) {
@@ -125,13 +132,15 @@ main (int argc, char **argv)
     }
 
     printf ("Counting sort was successful using reference version\n\n");
+    printf ("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
 
 #ifdef DEBUG
     print_array (sorted_array_reference, num_elements);
 #endif
 
+    /*-------------------------------------Multi Thread----------------------------------*/
     /* FIXME: Write function to sort the elements in the array in parallel fashion. 
- *      * The result should be placed in sorted_array_mt. */
+     * The result should be placed in sorted_array_mt. */
 
     printf ("\nSorting array using pthreads\n");
     sorted_array_g = (int *) malloc (num_elements * sizeof (int));
@@ -154,9 +163,9 @@ main (int argc, char **argv)
     	memset (local_array[i], 0, (range + 1));
     }
     global_bin_array = (int *) malloc ((range + 1) * sizeof (int));
-
+    gettimeofday(&start, NULL);
     compute_using_pthreads (input_array, sorted_array_g, local_array, num_elements, range, num_threads);
-
+    gettimeofday(&stop, NULL);
     /* Check the two results for correctness. */
     printf ("\nComparing reference and pthread results\n");
     status = compare_results (sorted_array_reference, sorted_array_g, num_elements);
@@ -164,6 +173,11 @@ main (int argc, char **argv)
         printf ("Test passed\n");
     else
         printf ("Test failed\n");
+    printf ("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
+#ifdef DEBUG
+    print_array (sorted_array_g, num_elements);
+#endif
+
 
     exit (EXIT_SUCCESS);
 }
@@ -173,8 +187,8 @@ int
 compute_gold (int *input_array, int *sorted_array, int num_elements, int range)
 {
     /* Compute histogram. Generate bin for each element within 
- *      * the range. 
- *           * */
+     * the range. 
+     * */
     int i, j;
     int num_bins = range + 1;
     int *bin = (int *) malloc (num_bins * sizeof (int));    
@@ -208,31 +222,41 @@ void *
 compute_silver (void *args)
 {
     /* Compute histogram. Generate bin for each element within 
- *      * the range. */
+     * the range. */
 	ARGS_FOR_THREAD *args_for_me = (ARGS_FOR_THREAD *) args; /* Typecast argument passed to function to appropriate type */
 	printf("Thread %d reporting for duty\n", args_for_me->tid);
     	int i, j;
 	int num_bins = args_for_me->range + 1;
+	int tid = args_for_me->tid;
+	int start = args_for_me->start;
+	int num_elements = args_for_me->num_elements;
+	int num_threads = args_for_me->num_threads;
 
 	printf("waiting for all threads to spawn\n");
 	barrier_sync(&barrier, args_for_me->tid, args_for_me->num_threads);
 	printf("Thread %d is starting to stride\n", args_for_me->tid);
 
-    	for (i = args_for_me->start; i < args_for_me->num_elements; i = i + args_for_me->num_threads)
-    		args_for_me->local_array[args_for_me->tid][args_for_me->input_array[i]]++;
+//	memset(args_for_me->local_array[tid], 0, num_bins); /* Initialize histogram bins to zero */ 
+
+    	for (i = start; i < num_elements; i = i + num_threads)
+		printf("Th %d Bin %d Before: %d\n", tid, args_for_me->input_array[i], args_for_me->local_array[tid][args_for_me->input_array[i]]);
+		fflush(stdout);
+    		args_for_me->local_array[tid][args_for_me->input_array[i]]++;
+		printf("Th %d Bin %d After: %d\n", tid, args_for_me->input_array[i], args_for_me->local_array[tid][args_for_me->input_array[i]]);
+		fflush(stdout);
 
 #ifdef DEBUG_MORE_VERBOSE
-    	print_histogram_thr (args_for_me->local_array[args_for_me->tid], num_bins, args_for_me->num_elements, args_for_me->tid);
+    	print_histogram_thr (args_for_me->local_array[tid], num_bins, num_elements, tid);
 #endif
 
-	printf("Thread %d is at the barrier. \n", args_for_me->tid);
-	barrier_sync(&barrier, args_for_me->tid, args_for_me->num_threads);
-	printf("The flood gates hath opened for thread %d. \n", args_for_me->tid);
+	printf("Thread %d is at the barrier. \n", tid);
+	barrier_sync(&barrier, tid, num_threads);
+	printf("The flood gates hath opened for thread %d. \n", tid);
 
 	
     	/* Stride through local histograms to generate global histogram */
-    	for (i = args_for_me->start; i < num_bins; i=i+args_for_me->num_threads) {
-    	    for (j = 0; j < args_for_me->num_threads; j++) {
+    	for (i = start; i < num_bins; i=i+num_threads) {
+    	    for (j = 0; j < num_threads; j++) {
     	        global_bin_array[i] += args_for_me->local_array[j][i];
     	    }
     	}
