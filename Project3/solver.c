@@ -88,41 +88,51 @@ main (int argc, char **argv)
 int 
 compute_using_pthreads_jacobi (grid_t *grid, int num_threads)
 {		
-	/* The grid is stored in an n x n array u. */
+    pthread_t *thread_id;
+    pthread_attr_t attributes;
+	pthread_attr_init(&attributes);
 
-	int num_iter = 0;
-	int done = 0;
-	int i, j, m;
-	float old, newVal, diff;
-	float eps = 1e-2; /* Convergence criteria. */
+    thread_id = (pthread_t *) malloc (sizeof(pthread_t) * num_threads);
 
-	while (!done) {
-		diff = 0;
-		m = 0;
+    int num_iter = 0;
+    int done = 0;
+    int i, j, m, n;
+    float old, new, diff;
+    float eps = 1e-2; /* Convergence criteria. */
 
-		/* Update each interior grid point. */
-		for (i = 1; i < (grid->dim - 1); i++) { /* Iterate over rows.*/
-			for (j = 1; j < (grid->dim - 1); j++) { /* Iterate over columns. */
-				old = grid->element[i * grid->dim + j]; /* Save value from previous iteration. */
+    while(!done) {
+        diff = 0;
+        m = 0;
+        n = grid->dim;
 
-				/* Update value for current iteration. */
-				newVal = 0.25 * (grid->element[(i - 1) * grid->dim + j] + grid->element[(i + 1) * grid->dim + j] + grid->element[i * grid->dim + (j + 1)] + grid->element[i * grid->dim + (j - 1)]);
-				grid->element[i * grid->dim + j] = newVal;
+        /* Make a copy of the grid from the previous iteration. */
+        grid_t *grid_prevIt = copy_grid (grid);
 
-				/* Accumulate difference between updated and old value.*/
-				diff += fabs(newVal - old);
-				m++;
-			}
-		}
+        /* Update each interior grid point. */
+        for (i = 1; i < n - 1; i++) { /* Iterate over rows. */
+            for (j = 1; j < n - 1; j++) { /* Iterate over columns. */
+                old = grid_prevIt->element[i * grid->dim + j]; /* Save value from previous iteration. */
 
-		/* Test for convergence. */
-		printf("Iteration %d. DIFF: %f.\n", num_iter, diff);
-		num_iter++;
-		
-		if (diff / m < eps) {
-			done = 1;
-		}
-	}
+                /* Update value for current iteration. */
+                new = 0.25 * (grid_prevIt->element[(i - 1) * grid_prevIt->dim + j] +\
+                              grid_prevIt->element[(i + 1) * grid_prevIt->dim + j] +\
+                              grid_prevIt->element[i * grid_prevIt->dim + (j + 1)] +\
+                              grid_prevIt->element[i * grid_prevIt->dim + (j - 1)]);
+                //new = 0.25*(u[i][j-1] + u[i-1][j] + u[i][j+1] + u[i-1][j]);
+                grid->element[i * n + j] = new;
+
+                /* Accumulate difference between updated and old value. */
+                diff += fabs(new - old);
+                m++;
+            }
+        }
+        num_iter++;
+        printf ("Iteration %d. DIFF: %f. || Iteration %d. DIFF/m: %f.\n", num_iter, diff, num_iter, diff/m);
+        /* Test for convergence. */
+        if (diff/m < eps) {
+            done = 1;
+        }
+    }
     return num_iter;
 }
 
