@@ -156,7 +156,7 @@ main (int argc, char **argv)
        		perror ("Malloc");
         	exit (EXIT_FAILURE);
     	}
-	memset (global_bin_array[i], 0, chunk_size);
+	memset (global_bin_array[i], 0, num_elements * sizeof (int));
     }
 
     local_array = (int **) malloc (num_threads * sizeof (int *));
@@ -170,7 +170,7 @@ main (int argc, char **argv)
        		perror ("Malloc");
         	exit (EXIT_FAILURE);
     	}
-    	memset (local_array[i], 0, (range + 1));
+    	memset (local_array[i], 0, (range + 1) * sizeof (int));
     }
     sorted_array_g = (int *) malloc (num_elements * sizeof (int));
     //global_bin_array = (int *) malloc ((range + 1) * sizeof (int));
@@ -279,9 +279,6 @@ compute_silver (void *args)
 		}
     	}
 	args_for_me->global_stop[args_for_me->tid] = idx;
-	printf("here\n");
-	fflush(stdout);
-
     	pthread_exit(NULL);
 }
 
@@ -297,7 +294,7 @@ compute_using_pthreads (int *input_array, int *sorted_array_g, int **local_array
 	int i, j;
 	int num_bins = range + 1;
 	int k = 0;
-	printf("Spawning Threads to perform counting sum\n");
+	//printf("Spawning Threads to perform counting sum\n");
 	for(i = 0; i < num_threads; i++){
 		args_for_thread[i].tid = i;
 		args_for_thread[i].input_array = input_array;
@@ -465,7 +462,7 @@ barrier_sync (BARRIER *barrier, int thread_number, int num_threads)
         sem_post (&(barrier->counter_sem)); 
 					 
         /* Signal the blocked threads that it is now safe to cross the barrier */			 
-        printf("Thread number %d is signalling other threads to proceed. \n", thread_number); 			 
+        //printf("Thread number %d is signalling other threads to proceed. \n", thread_number); 			 
         for (int i = 0; i < (num_threads - 1); i++)
             sem_post (&(barrier->barrier_sem));
     } 

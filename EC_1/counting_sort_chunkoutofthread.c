@@ -52,6 +52,9 @@ typedef struct args_for_thread
 	int	**local_array;
 	int	num_elements;	
 	int	start;
+	int	chunk;
+	int	start_2;
+	int	chunk_2;
 	int	range;
 	int	num_threads;	
 
@@ -171,6 +174,9 @@ main (int argc, char **argv)
     else
         printf ("Test failed\n");
     printf ("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
+#ifdef DEBUG
+    print_array (sorted_array_g, num_elements);
+#endif
 
     exit (EXIT_SUCCESS);
 }
@@ -220,14 +226,22 @@ compute_silver (void *args)
 	//printf("Thread %d reporting for duty\n", args_for_me->tid);
     	int i, j;
 	int num_bins = args_for_me->range + 1;
+
 #ifdef DEBUG_MORE_VERBOSE
 	printf("waiting for all threads to spawn\n");
 	barrier_sync(&barrier, args_for_me->tid, args_for_me->num_threads);
-	printf("Thread %d is starting to stride\n", args_for_me->tid);
 #endif
 
-    	for (i = args_for_me->start; i < args_for_me->num_elements; i = i + args_for_me->num_threads)
-    		args_for_me->local_array[args_for_me->tid][args_for_me->input_array[i]]++;
+	if (args_for_me->tid < (args_for_me->num_threads - 1)){	
+	//	printf("Thread %d is starting: %d to %d\n", args_for_me->tid, args_for_me->start, args_for_me->start+args_for_me->chunk);
+    		for (i = args_for_me->start; i < args_for_me->start+args_for_me->chunk; i++)
+    			args_for_me->local_array[args_for_me->tid][args_for_me->input_array[i]]++;
+	}
+	else {
+	//	printf("Thread %d is starting: %d to %d\n", args_for_me->tid, args_for_me->start, args_for_me->num_elements);
+		for (i = args_for_me->start; i < args_for_me->num_elements; i++)
+			args_for_me->local_array[args_for_me->tid][args_for_me->input_array[i]]++;
+	}
 
 #ifdef DEBUG_MORE_VERBOSE
     	print_histogram_thr (args_for_me->local_array[args_for_me->tid], num_bins, args_for_me->num_elements, args_for_me->tid);
@@ -238,12 +252,21 @@ compute_silver (void *args)
 	//printf("The flood gates hath opened for thread %d. \n", args_for_me->tid);
 
 	
-    	/* Stride through local histograms to generate global histogram */
-    	for (i = args_for_me->start; i < num_bins; i=i+args_for_me->num_threads) {
-    	    for (j = 0; j < args_for_me->num_threads; j++) {
-    	        global_bin_array[i] += args_for_me->local_array[j][i];
-    	    }
-    	}
+    	/* use second chunk to turn local histograms to generate global histogram */
+    	if (args_for_me->tid < (args_for_me->num_threads -1 )){
+		for (i = args_for_me->start_2; i < args_for_me->start_2+args_for_me->chunk_2; i++) {
+    	    		for (j = 0; j < args_for_me->num_threads; j++) {
+    	        		global_bin_array[i] += args_for_me->local_array[j][i];
+    	    		}
+    		}
+	}
+	else {
+		for (i = args_for_me->start_2; i < num_bins; i++) {
+    	    		for (j = 0; j < args_for_me->num_threads; j++) {
+    	        		global_bin_array[i] += args_for_me->local_array[j][i];
+    	    		}
+    		}
+	}
     	pthread_exit(NULL);
 }
 
@@ -258,13 +281,18 @@ compute_using_pthreads (int *input_array, int *sorted_array_g, int **local_array
 	ARGS_FOR_THREAD *args_for_thread = (ARGS_FOR_THREAD *) malloc (sizeof (ARGS_FOR_THREAD) * num_threads);
 	int i, j;
 	int num_bins = range + 1;
+	int chunk_1 = (int) floor ((float) num_elements/(float) num_threads); /* Compute chunk size */
+	int chunk_2 = (int) floor ((float) num_bins/(float) num_threads);
 	//printf("Spawning Threads to perform counting sum\n");
 	for(i = 0; i < num_threads; i++){
 		args_for_thread[i].tid = i;
 		args_for_thread[i].input_array = input_array;
 		args_for_thread[i].local_array = local_array;
 		args_for_thread[i].num_elements = num_elements;
-		args_for_thread[i].start = i;
+		args_for_thread[i].start = i*chunk_1;
+		args_for_thread[i].chunk = chunk_1;
+		args_for_thread[i].start_2 = i*chunk_2;
+		args_for_thread[i].chunk_2 = chunk_2;
 		args_for_thread[i].range = range;
 		args_for_thread[i].num_threads = num_threads;
 		pthread_create(&thread_id[i], &attributes, compute_silver, (void *) &args_for_thread[i]);
@@ -276,6 +304,7 @@ compute_using_pthreads (int *input_array, int *sorted_array_g, int **local_array
 	}
 
 #ifdef DEBUG_MORE_VERBOSE
+	printf("Print global bin array\n");
 	print_histogram (global_bin_array, num_bins, num_elements);
 #endif
 
