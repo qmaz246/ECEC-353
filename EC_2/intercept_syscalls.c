@@ -2,9 +2,10 @@
  * This example intercepts the write() system call, and modifies the contents of the 
  * buffer that is to be printed out by the child. 
  *
- * Author: Naga Kandasamy
+ * Authors: Quinn Mazzilli and Omer Odermis
+ * Skeleton-Author: Naga Kandasamy
  * Date created: February 20, 2020
- * Date modified: March 6, 2020
+ * Date modified: March 20, 2020
  *
  * Compile as follows: gcc -o intercept_syscalls intercept_syscalls.c -std=99 -Wall 
  * Execute as follows: ./intercept_syscalls ./program-name 
@@ -18,6 +19,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
 
 /* POSIX includes */
 #include <unistd.h>
@@ -117,7 +119,8 @@ main (int argc, char **argv)
         switch (syscall) {
             case SYS_write:
                 /* Print syscall information */
-                fprintf (stderr, "\n%ld (%ld, %ld, %ld, %ld, %ld, %ld)\n",\
+		fprintf (stderr, "\nsyscall information:\n");
+                fprintf (stderr, "%ld (%ld, %ld, %ld, %ld, %ld, %ld)\n",\
                          syscall,\
                          (long) regs.rdi, (long) regs.rsi, (long) regs.rdx,\
                          (long) regs.r10, (long) regs.r8, (long) regs.r9);
@@ -126,13 +129,18 @@ main (int argc, char **argv)
                  * be printed out. Register rdx contains the number of bytes to 
                  * write out. */
                 fprintf (stderr, "Tracee intends to write %d bytes located at %p\n", (unsigned int) regs.rdx, (void *) regs.rsi);
-
+		fprintf (stderr, "Message tracee is trying to write: \n");
                 buffer = read_buffer_contents (pid, (unsigned int) regs.rdx, regs.rsi); /* Read tracee buffer */
                 print_buffer_contents (buffer, (unsigned int) regs.rdx); /* Print contents of tracee buffer */
 
-                /* FIXME: Convert the contents of buffer to upper-case and write the modified contents 
+                /* Convert the contents of buffer to upper-case and write the modified contents 
                  * to the tracee's address space. */
                 modify_buffer_contents (pid, buffer, (unsigned int) regs.rdx, regs.rsi);
+
+		fprintf (stderr, "Message tracee is actually writing: \n");
+		buffer = read_buffer_contents (pid, (unsigned int) regs.rdx, regs.rsi); /* Read tracee buffer */
+                print_buffer_contents (buffer, (unsigned int) regs.rdx); /* Print contents of tracee buffer */
+
 
                 free ((void *) buffer);
                 buffer = NULL;
@@ -209,12 +217,39 @@ read_buffer_contents (pid_t pid, unsigned int count, long address)
     return buffer;
 }
 
-/* FIXME: Complete this function to modify contents of provided buffer to upper case, and 
+/* Modify contents of provided buffer to upper case, and 
  * write the modified contents to the address space of tracee, starting at the specified address. 
  */
 void 
 modify_buffer_contents (pid_t pid, unsigned char *buffer, unsigned int count, long address)
 {
+    int i, j;
+    unsigned int words, lop_off;
+    unsigned char *upper_buff;
+    unsigned char *copy_buff[sizeof(long)];
+    upper_buff = (unsigned char *) malloc (sizeof (unsigned char) * count);
+
+    for (i = 0; i < count; i++)
+        upper_buff[i] = toupper(buffer[i]);	
+    
+    words = count / sizeof(long);
+    lop_off = count - words * sizeof(long);	
+    for (i=0; i < words; i++){
+	unsigned char *copy_buff[sizeof(long)];
+	for (j=0; j < sizeof(long); j++){
+		copy_buff[j] = upper_buff[i * sizeof(long) + j];
+    		ptrace(PTRACE_POKEDATA, pid, address++, copy_buff[j]);
+	}
+    }
+
+    if (lop_off > 0) {
+	unsigned char *copy_buff[sizeof(long)];
+	for (j=0; j < lop_off; j++){
+		copy_buff[j] = upper_buff[i * sizeof(long) + j];
+    		ptrace(PTRACE_POKEDATA, pid, address++, copy_buff[j]);
+	}
+    }
+
     return;
 }
 
@@ -223,6 +258,7 @@ void
 print_buffer_contents (unsigned char *buffer, unsigned int count)
 {
     int i;
+	
     for (i = 0; i < count; i++)
         putc (buffer[i], stderr);
     

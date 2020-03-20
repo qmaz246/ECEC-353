@@ -1,10 +1,14 @@
 /* Program to perform counting sort 
  *
- *  * Author: Naga Kandasamy
- *   * Date created: February 24, 2020
- *    * 
- *     * Compile as follows: gcc -o counting_sort counting_sort.c -std=c99 -Wall -O3 -lpthread -lm
- *      */
+ * Author: Naga Kandasamy
+ * Authors: Quinn Mazzilli and Omer Odermis
+ * 	
+ * Date created: February 24, 2020
+ * Date modified: March 18, 2020
+ *  
+ * Compile as follows: gcc -o counting_sort counting_sort.c -std=c99 -Wall -O3 -lpthread -lm
+ *     
+ */
 
 #include <stdlib.h>
 #include <stdio.h>

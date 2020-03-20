@@ -1,4 +1,4 @@
-/*  Purpose: Calculate definite integral using trapezoidal rule.
+/* Purpose: Calculate definite integral using trapezoidal rule.
  *
  * Input:   a, b, n, num_threads
  * Output:  Estimate of integral from a to b of f(x)
@@ -10,8 +10,10 @@
  * Note:    The function f(x) is hardwired.
  *
  * Author: Naga Kandasamy
+ * Authors: Quinn Mazzilli and Omer Odermis
  * Date modified: February 21, 2020
- *
+ * Date updated: March 10, 2020
+ * 
  */
 
 #include <stdlib.h>
