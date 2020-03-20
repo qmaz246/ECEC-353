@@ -28,7 +28,8 @@
 #include <linux/ptrace.h>
 
 /* Function prototypes */
-unsigned char *read_buffer_contents (pid_t, unsigned int, long);
+//int read_buffer_contents (pid_t, unsigned int, char, unsigned int);
+int read_buffer_contents (pid_t pid, long address, char *buff, unsigned int buff_size);
 void print_buffer_contents (unsigned char *, unsigned int);
 
 int 
@@ -89,8 +90,8 @@ main (int argc, char **argv)
          * %rsi: flags
          */
         struct user_regs_struct regs;
-	unsigned char *buffer;
         ptrace (PTRACE_GETREGS, pid, 0, &regs);                         /* Read tracee registers into regs */
+	char buffer[1000];
         long syscall = regs.orig_rax;                                   /* System call number */
 	long flags;
 
@@ -110,10 +111,15 @@ main (int argc, char **argv)
 		} else{
 			printf("Something else\n");
 		}	
+                read_buffer_contents (pid, regs.rdi, buffer, 1000); /* Read tracee buffer */
+               // print_buffer_contents (buffer, (unsigned int) regs.rdx); /* Print contents of tracee buffer */
+//        fprintf(stderr, "WRITE: %s\n", buffer);
+
 
 		break;
 
 	    default:
+		fprintf(stderr, "Default\n");
 		break;
 	}
 
@@ -136,43 +142,23 @@ main (int argc, char **argv)
     exit (EXIT_SUCCESS);
 }
 
-unsigned char * 
-read_buffer_contents (pid_t pid, unsigned int count, long address)
+int 
+read_buffer_contents (pid_t pid, long address, char *buff, unsigned int buff_size)
 {
-    unsigned char *c, *buffer;
-    long data;
-    unsigned int i, j, idx, num_words, lop_off;
+    long * r_addr = (long *) address;
+    long * c_addr = (long *) buff;
+    unsigned long ret;
+    unsigned int bytes = 0;
+    memset(buff, '\0', buff_size);
+    do {
+	    ret = ptrace(PTRACE_PEEKTEXT, pid, (r_addr++), NULL);
+	    *(c_addr++) = ret;
+	    bytes += sizeof(long);
+    } while ( ret && bytes < (buff_size - sizeof(long)));
+ 
         
-    /* Allocate space to store the contents of the buffer */
-    buffer = (unsigned char *) malloc (sizeof (unsigned char) * count);
-
-    num_words = count/sizeof (long);
-    lop_off = count - num_words * sizeof (long);
-    idx = 0;
-    
-    /* Peek into the tracee's address space, each time returning a word (eight bytes) of data. 
-     * Typecast the word into characters and store in our buffer.
-     */
-    for (i = 0; i < num_words; i++) {
-        data = ptrace (PTRACE_PEEKDATA, pid, (void *) (address + i * sizeof (long)), 0);
-        c = (unsigned char *) &data;
-        for (j = 0; j < sizeof (long); j++)
-            buffer[idx++] = c[j];
-    }
-
-    /* If the number of bytes is not a perfect multiple of the word length,
-     * read and store the rest of the characters in our buffer.
-     */
-    if (lop_off > 0) {
-        data = ptrace (PTRACE_PEEKDATA, pid, (void *) (address + i * sizeof (long)), 0);
-        c = (unsigned char *) &data;
-        for (j = 0; j < lop_off; j++)
-            buffer[idx++] = c[j];
-    }
-
-    return buffer;
+    return bytes;
 }
-
 
 /* Helper function to print contents of buffer */
 void 
