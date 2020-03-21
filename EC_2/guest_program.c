@@ -56,7 +56,7 @@ main(int argc, char *argv[])
     write(fd, buf, strlen (buf));
     close(fd);
     /* Unlink the file from the /tmp directory */
-    unlink(file_name_3);
+    //unlink(file_name_3);
 
     exit(EXIT_SUCCESS);
 }

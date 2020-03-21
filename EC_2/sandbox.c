@@ -1,12 +1,16 @@
-/* Program to effectively block if a tracee tries to create a new file
- * outside the /tmp/ directory.
+/* Program illustrating how the ptrace system call can be used to intercept system calls.
+ * This example intercepts the write() system call, and modifies the contents of the 
+ * buffer that is to be printed out by the child. 
  *
- * Author: Quinn Mazzilli and Omer Odermis
- * Date created: March 18, 2020
+ * Authors: Quinn Mazzilli and Omer Odermis
+ * Skeleton-Author: Naga Kandasamy
+ * Date created: February 20, 2020
+ * Date modified: March 20, 2020
  *
- * Compile as follows: gcc -o simple_strace simple_strace.c -std=99 -Wall 
+ * Compile as follows: gcc -o sandbox sandbox.c -std=c99 -Wall 
  * Execute as follows: ./sandbox ./program-name 
- *
+ * 
+ * The tracee program is in the same directory as your simple_strace program.
  *
  */
 
@@ -16,6 +20,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+
 /* POSIX includes */
 #include <unistd.h>
 #include <sys/types.h>
@@ -28,8 +33,7 @@
 #include <linux/ptrace.h>
 
 /* Function prototypes */
-//int read_buffer_contents (pid_t, unsigned int, char, unsigned int);
-int read_buffer_contents (pid_t pid, long address, char *buff, unsigned int buff_size);
+unsigned char *read_buffer_contents (pid_t, unsigned int, long);
 void print_buffer_contents (unsigned char *, unsigned int);
 
 int 
@@ -81,83 +85,166 @@ main (int argc, char **argv)
         ptrace (PTRACE_SYSCALL, pid, 0, 0);
         waitpid (pid, 0, 0);
 
-        /* rax: system call number. For internal kernel purposes, the system call 
-         * number is stored in orig_rax rather than in rax.
-         * rdi, rsi, rdx, r10, r8, r9: Upto six arguments passed via registers (note ordering)
+        /* When wait() returns, the registers for the tracee that made the 
+         * system call are filled with the syscall number and its 
+         * arguments. However, the kernel has not yet serviced this system 
+         * call. We can now gather the system call information. 
          *
-         * What we focus on: 
-         * %rdi: address
-         * %rsi: flags
+         * On the x86-64 architecture, the following registers hold the 
+         * relevant information.
+         *
+         * rax: system call number. For internal kernel purposes, the system call 
+         *      number is stored in orig_rax rather than in rax.
+         * rdi, rsi, rdx, r10, r8, r9: Upto six arguments passed via registers (note ordering of registers)
+         *
+         * The Linux system call table for x86-64 can be found at:
+         *
+         * https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
+         *
+         * The table contains syscall numbers as well as information as to how arguments are 
+         * passed to the system call. 
+         *
+         * The syscall table for x86-64 can also be downloaded from the Linux master branch:
+         *
+         * https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl
+         *
+	 * Our focus: sys_openat
+	 * orig_rax: 257
+	 * rdi: dfd
+	 * rsi: filename
+	 * rdx: flags
+	 * r10: mode
          */
         struct user_regs_struct regs;
-        ptrace (PTRACE_GETREGS, pid, 0, &regs);                         /* Read tracee registers into regs */
-	char buffer[1000];
-        long syscall = regs.orig_rax;                                   /* System call number */
-	long flags;
+        long syscall;
+	int flags;
+        unsigned char *buffer; 
+	unsigned char tempAddr[] = "/tmp/";
+	unsigned char *temp = &tempAddr[0];
+	int blocked = 0;	
 
-	switch (syscall) {
-            case SYS_open:
-		/* Print syscall information */
-		fprintf (stderr, "\nsyscall information:\n");
-                fprintf (stderr, "address: %ld (flags: %ld, %ld, %ld, %ld, %ld, %ld)\n",\
+        ptrace (PTRACE_GETREGS, pid, 0, &regs);             /* Read tracee registers into regs */
+        syscall = regs.orig_rax;                            /* System call number */
+        switch (syscall) {
+            case 257:
+                /* Print syscall information */
+		fprintf (stderr, "\nsys_open information:\n");
+                fprintf (stderr, "%ld (%ld, %ld, %ld, %ld, %ld, %ld)\n",\
                          syscall,\
                          (long) regs.rdi, (long) regs.rsi, (long) regs.rdx,\
                          (long) regs.r10, (long) regs.r8, (long) regs.r9);
-		flags = (long) regs.rsi;
-		if (flags == (O_RDONLY)){
-			printf("Flags = O_RDONLY\n");
-		} else if (flags == (O_CREAT|O_RDWR)){
-			printf("Flags = O_CREAT|O_RDWR\n");
-		} else{
-			printf("Something else\n");
-		}	
-                read_buffer_contents (pid, regs.rdi, buffer, 1000); /* Read tracee buffer */
-               // print_buffer_contents (buffer, (unsigned int) regs.rdx); /* Print contents of tracee buffer */
-//        fprintf(stderr, "WRITE: %s\n", buffer);
+		flags = regs.rdx;
+                /* Register rsi contains the starting address of the buffer to 
+                 * be printed out. Register rdx contains the number of bytes to 
+                 * write out. */
+		fprintf(stderr, "Flags = %d\n", flags);
+		buffer = read_buffer_contents (pid, 30, regs.rsi); // Read tracee buffer
+                print_buffer_contents (buffer, 30); // Print contents of tracee buffer 
+		fprintf(stderr, "\n");
+		if (flags == (O_RDONLY))
+			fprintf (stderr, "Read Only\n");
+		else if (flags == (O_CREAT|O_RDWR)){
+			fprintf (stderr, "Create | ReadWrite\n");
+                	fprintf (stderr, "Tracee intends to open at address located at %p\n", (void *) regs.rsi);
+			if (memcmp(temp, buffer, 5) != 0){
+				fprintf(stderr, "You have been blocked\n");
+				blocked = 1;
+			}
+		}
+		
 
+		free ((void *) buffer);
+                buffer = NULL;
+                break;
 
-		break;
+            default:
+		fprintf(stderr, "%ld\n", syscall);
+                break;
 
-	    default:
-		fprintf(stderr, "Default\n");
-		break;
+        }
+        /* Execute the system call and stop the tracee on exiting the call */
+	if (blocked) {
+		ptrace(PTRACE_SYSCALL, pid, 0, 0);
+		regs.rax = -EPERM;
+		ptrace(PTRACE_SETREGS, pid, 0, &regs);
+	} else {
+		ptrace(PTRACE_SYSCALL, pid, 0, 0);
+		blocked = 0;
 	}
-
-        /* Run the system call and stop on exiting the call */
-        ptrace (PTRACE_SYSCALL, pid, 0, 0);
+        //ptrace (PTRACE_SYSCALL, pid, 0, 0);
         waitpid (pid, 0, 0);
 
         /* Get the result of the system call */
         if (ptrace (PTRACE_GETREGS, pid, 0, &regs) == -1) {
-            if (errno == ESRCH) 
-                exit (regs.rdi);                                        /* System call was exit() or similar */
+            if (errno == ESRCH) {   /* System call was exit() or similar */ 
+                fprintf (stderr, "\n");
+                exit (regs.rdi);
+            }                            
+            
             perror ("ptrace");
             exit (EXIT_FAILURE);
         }
+/*
+	if (blocked) {
+		// Set errno to EPERM (operation not permitted) in rax
+		if (ptrace (PTRACE_SETREGS, pid, 0, &regs) == -1) {
+			perror ("ptrace");
+			exit (EXIT_FAILURE);
+		}
+	}
+	*/
 
         /* Print result of system call */
-        printf (" = %ld\n", (long) regs.rax);
-    }
+        switch (syscall) {
+            case SYS_write:
+                fprintf (stderr, "Number of bytes written = %ld\n", (long) regs.rax);
+                break;
 
+            default:
+                break;
+        }
+    }
+    
     exit (EXIT_SUCCESS);
 }
 
-int 
-read_buffer_contents (pid_t pid, long address, char *buff, unsigned int buff_size)
+/* Read contents of the buffer for the write() system call located at specified address */
+unsigned char * 
+read_buffer_contents (pid_t pid, unsigned int count, long address)
 {
-    long * r_addr = (long *) address;
-    long * c_addr = (long *) buff;
-    unsigned long ret;
-    unsigned int bytes = 0;
-    memset(buff, '\0', buff_size);
-    do {
-	    ret = ptrace(PTRACE_PEEKTEXT, pid, (r_addr++), NULL);
-	    *(c_addr++) = ret;
-	    bytes += sizeof(long);
-    } while ( ret && bytes < (buff_size - sizeof(long)));
- 
+    unsigned char *c, *buffer;
+    long data;
+    unsigned int i, j, idx, num_words, lop_off;
         
-    return bytes;
+    /* Allocate space to store the contents of the buffer */
+    buffer = (unsigned char *) malloc (sizeof (unsigned char) * count);
+
+    num_words = count/sizeof (long);
+    lop_off = count - num_words * sizeof (long);
+    idx = 0;
+    
+    /* Peek into the tracee's address space, each time returning a word (eight bytes) of data. 
+     * Typecast the word into characters and store in our buffer.
+     */
+    for (i = 0; i < num_words; i++) {
+        data = ptrace (PTRACE_PEEKDATA, pid, (void *) (address + i * sizeof (long)), 0);
+        c = (unsigned char *) &data;
+        for (j = 0; j < sizeof (long); j++)
+            buffer[idx++] = c[j];
+    }
+
+    /* If the number of bytes is not a perfect multiple of the word length,
+     * read and store the rest of the characters in our buffer.
+     */
+    i = 0;
+    if (lop_off > 0) {
+        data = ptrace (PTRACE_PEEKDATA, pid, (void *) (address + i * sizeof (long)), 0);
+        c = (unsigned char *) &data;
+        for (j = 0; j < lop_off; j++)
+		buffer[idx++] = c[i++];
+    }
+
+    return buffer;
 }
 
 /* Helper function to print contents of buffer */
